@@ -1,0 +1,191 @@
+{
+  "domain": "ml-research",
+  "description": "ML研究の調査・実験・実装・執筆・査読対応の業務ルーター。",
+  "rules": [
+    {
+      "id": "paper-reading",
+      "title": "論文を読む・要約する",
+      "keywords": {
+        "strong": [
+          "論文を読み", "論文を要約", "この論文", "この論文どう", "arxivを",
+          "論文の内容", "論文を理解", "サーベイ論文を読", "解説して",
+          "何の論文", "論文紹介"
+        ],
+        "weak": ["論文", "arxiv", "読みたい", "要約", "理解", "内容"]
+      },
+      "patterns": ["(arxiv|doi|openreview|論文).{0,20}(読|要約|解説|まとめ)", "https?://arxiv\\.org/\\S+"],
+      "playbook": "playbooks/paper-reading.md",
+      "skills": ["skills/paper-anatomy", "skills/research-writing"],
+      "approval": "none",
+      "notes": "主張・証拠・限界を分けて読む。要約に自分の評価を混ぜない。"
+    },
+    {
+      "id": "literature-survey",
+      "title": "関連研究・文献調査",
+      "keywords": {
+        "strong": [
+          "関連研究", "先行研究", "文献調査", "サーベイして", "sota",
+          "最新研究", "どんな研究がある", "研究の流れ", "系譜",
+          "ベースラインになりそう", "サーベイを書"
+        ],
+        "weak": ["調査", "研究", "文献", "関連", "動向", "トレンド"]
+      },
+      "patterns": ["(関連|先行|最新).{0,6}研究.{0,8}(調べ|探し|まとめ|教えて)"],
+      "playbook": "playbooks/literature-survey.md",
+      "skills": ["skills/literature-search", "skills/research-writing"],
+      "approval": "none",
+      "notes": "検索クエリと対象会議を明示する。網羅性の限界を書く。"
+    },
+    {
+      "id": "idea-critique",
+      "title": "アイデアの批判的検討",
+      "keywords": {
+        "strong": [
+          "アイデア", "新規性", "研究の穴", "批判して", "どう思う",
+          "成立するか", "先行研究と何が違", "弱いところ", "反論",
+          "レビューして欲しい", "厳しく評価"
+        ],
+        "weak": ["提案", "方向性", "着想", "思いつき", "有望"]
+      },
+      "patterns": ["(アイデア|提案|方針).{0,8}(どう|評価|批判|検討|厳しく)"],
+      "playbook": "playbooks/idea-critique.md",
+      "skills": ["skills/experiment-methodology", "skills/research-ethics"],
+      "approval": "none",
+      "notes": "称賛しない。反証可能な形に落として、最強の反論を先に書く。"
+    },
+    {
+      "id": "experiment-design",
+      "title": "実験の設計",
+      "keywords": {
+        "strong": [
+          "実験設計", "実験を設計", "どう検証", "検証方法", "baseline",
+          "ベースライン", "ablation", "アブレーション", "評価指標",
+          "仮説を検証", "実験計画", "統制条件", "サンプルサイズ", "計算資源"
+        ],
+        "weak": ["実験", "検証", "比較", "指標", "計画", "統制"]
+      },
+      "patterns": ["(実験|検証).{0,8}(設計|計画|どう|方法)"],
+      "playbook": "playbooks/experiment-design.md",
+      "skills": ["skills/experiment-methodology", "skills/reproducibility-checklist"],
+      "approval": "confirm",
+      "notes": "先に仮説、baseline、指標、成功条件を固定する。結果を見てから指標を変えない。"
+    },
+    {
+      "id": "implementation",
+      "title": "実装・再現実装",
+      "keywords": {
+        "strong": [
+          "実装して", "コードを書", "再現実装", "pytorch", "tensorflow",
+          "jax", "訓練コード", "学習が回らない", "lossが", "勾配",
+          "バグ", "動かない", "データローダ", "推論コード", "微調整",
+          "ファインチューニング", "lora", "分散学習"
+        ],
+        "weak": ["実装", "コード", "モデル", "学習", "訓練", "推論"]
+      },
+      "patterns": ["(実装|コード|学習|訓練).{0,8}(して|書いて|直して|動か)", "(loss|accuracy).{0,6}(上がら|下がら|おかしい|nan)"],
+      "playbook": "playbooks/implementation.md",
+      "skills": ["skills/reproducibility-checklist", "skills/experiment-methodology"],
+      "approval": "none",
+      "notes": "動く最小構成から。数値の一致確認を先に行う。"
+    },
+    {
+      "id": "result-analysis",
+      "title": "結果の分析・統計",
+      "keywords": {
+        "strong": [
+          "結果を分析", "有意差", "p値", "信頼区間", "誤差", "標準偏差",
+          "分散が大き", "学習曲線", "結果が出ない", "数値がおかしい",
+          "統計的に", "相関", "検定", "複数seed", "ばらつき"
+        ],
+        "weak": ["結果", "分析", "統計", "数値", "グラフ", "評価"]
+      },
+      "patterns": [
+        "(結果|数値|性能).{0,8}(おかしい|改善|悪化|分析|解釈)",
+        "(結果|性能|loss|accuracy|精度).{0,8}(良くならない|伸びない|改善しない|出ない|上がらない)"
+      ],
+      "playbook": "playbooks/result-analysis.md",
+      "skills": ["skills/experiment-methodology", "skills/research-ethics"],
+      "approval": "none",
+      "notes": "単一 run で結論を出さない。効果量と不確実性を併記する。"
+    },
+    {
+      "id": "paper-writing",
+      "title": "論文の執筆",
+      "keywords": {
+        "strong": [
+          "論文を書", "原稿を書", "abstract", "概要を書", "related workを",
+          "手法を書", "実験セクション", "latex", "投稿先", "カメラレディ",
+          "図表を作", "論文の構成", "イントロを"
+        ],
+        "weak": ["執筆", "原稿", "論文", "構成", "投稿"]
+      },
+      "patterns": ["(論文|原稿|abstract|introduction|related work).{0,8}(書|構成|添削|推敲)"],
+      "playbook": "playbooks/paper-writing.md",
+      "skills": ["skills/research-writing", "skills/research-ethics", "skills/reproducibility-checklist"],
+      "approval": "confirm",
+      "notes": "主張と証拠の対応を先に確認する。査読者の立場で自己レビューする。"
+    },
+    {
+      "id": "rebuttal",
+      "title": "査読・rebuttal対応",
+      "keywords": {
+        "strong": [
+          "rebuttal", "リバッタル", "査読コメント", "レビュアー", "再投稿",
+          "camera ready", "反論", "査読対応", "レビューへの返信",
+          "メタレビュー", "スコアを上げ"
+        ],
+        "weak": ["査読", "レビュー", "コメント", "返信", "投稿"]
+      },
+      "patterns": ["(査読|レビュー|reviewer).{0,10}(コメント|対応|返信|反論)"],
+      "playbook": "playbooks/rebuttal.md",
+      "skills": ["skills/research-writing", "skills/research-ethics"],
+      "approval": "confirm",
+      "notes": "感情的にならない。事実と追加実験で答える。守れない約束をしない。"
+    },
+    {
+      "id": "reproduction",
+      "title": "再現・追試",
+      "keywords": {
+        "strong": [
+          "再現できない", "再現しない", "追試", "再現実験", "著者の実装",
+          "数値が合わない", "再現手順", "official implementation",
+          "リファレンス実装", "結果を再現", "再現したい", "再現してみ"
+        ],
+        "weak": ["再現", "追実験", "検証", "一致"]
+      },
+      "patterns": [
+        "(再現|追試|数値).{0,8}(できない|しない|合わない|確認)",
+        "(手法|論文|結果|実装).{0,10}(再現|追試)"
+      ],
+      "playbook": "playbooks/reproduction.md",
+      "skills": ["skills/reproducibility-checklist", "skills/experiment-methodology"],
+      "approval": "none",
+      "notes": "差異の原因を切り分ける。著者に問い合わせる前に自分の環境を疑う。"
+    },
+    {
+      "id": "research-planning",
+      "title": "研究計画・キャリア",
+      "keywords": {
+        "strong": [
+          "研究テーマ", "研究計画", "博士", "進路", "卒論", "修論",
+          "テーマの選び方", "研究室", "研究予算", "ポートフォリオ",
+          "研究方針", "何を研究", "分野を変"
+        ],
+        "weak": ["研究", "テーマ", "計画", "キャリア", "進学"]
+      },
+      "patterns": ["(研究|テーマ|進路).{0,8}(決め|選び|計画|相談)"],
+      "playbook": "playbooks/research-planning.md",
+      "skills": ["skills/experiment-methodology", "skills/literature-search", "skills/research-ethics"],
+      "approval": "confirm",
+      "notes": "キャリアの決定をエージェントがしない。選択肢と判断基準を整理する。"
+    }
+  ],
+  "clarify": {
+    "questions": [
+      "何をしたいですか: 論文を読む / 文献調査 / アイデア検討 / 実験設計 / 実装 / 結果分析 / 執筆 / 査読対応 / 再現 / 研究計画",
+      "対象は何ですか: 論文 (arXiv ID や URL) / 自分の実験・コード / データセット / 投稿中の原稿",
+      "研究成果をどの投稿先・締切に合わせますか (会議名や期限があれば)",
+      "使える計算資源とデータは何ですか"
+    ]
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "domain": "medical",
+  "description": "個人・家族の健康管理と受診支援の業務ルーター。",
+  "rules": [
+    {
+      "id": "emergency-red-flag",
+      "title": "緊急サイン",
+      "override": true,
+      "priority": 100,
+      "keywords": {
+        "strong": [
+          "胸が痛い", "胸痛", "息ができない", "息苦しい", "呼吸ができない",
+          "意識がない", "意識がもうろう", "呼びかけに応じない", "けいれん",
+          "痙攣", "ひきつけ", "大量出血", "出血が止まらない", "吐血",
+          "血便", "片麻痺", "体の半分が動かない", "ろれつが回らない",
+          "言葉が出ない", "突然の激しい頭痛", "アナフィラキシー",
+          "アレルギーで息が", "誤飲", "過量服薬", "薬を大量に飲んだ",
+          "死にたい", "消えたい", "自殺", "リストカット", "倒れて動けない",
+          "ぐったりしている", "顔色が悪く意識が", "高熱で意識"
+        ],
+        "weak": ["救急", "意識", "けいれん", "出血", "麻痺", "倒れた"]
+      },
+      "patterns": [
+        "(息|呼吸).{0,4}(苦し|できな|しにく)",
+        "(胸|頭).{0,3}(痛|いた).{0,6}(冷や汗|息苦|吐き気|倒れ)",
+        "(子供|子ども|赤ちゃん|乳児).{0,10}(ぐったり|けいれん|意識|呼吸)"
+      ],
+      "playbook": "playbooks/emergency-red-flag.md",
+      "skills": ["skills/red-flags-and-triage", "skills/safety-limits"],
+      "approval": "escalate",
+      "escalation": "119 番 (救急車) / 救急安心センター #7119 / 小児救急電話相談 #8000 / いのちの電話 0120-783-556。",
+      "notes": "分析より先に救急へ。迷ったら 119。自分で運転させない。"
+    },
+    {
+      "id": "symptom-triage",
+      "title": "症状の整理と受診判断",
+      "keywords": {
+        "strong": [
+          "症状", "発熱", "熱がある", "咳", "頭痛", "腹痛", "吐き気",
+          "下痢", "めまい", "しびれ", "湿疹", "蕁麻疹", "喉の痛み",
+          "鼻水", "倦怠感", "いつ病院に行く", "受診すべき", "病院に行くべき",
+          "何科に行けば", "痛みが続く", "微熱", "動悸"
+        ],
+        "weak": ["痛い", "だるい", "調子が悪い", "体調", "風邪"]
+      },
+      "patterns": ["(何科|どの科).{0,6}(行けば|受診|かかれ)", "(症状|痛み|熱).{0,8}(続|治ら|ひどく)"],
+      "playbook": "playbooks/symptom-triage.md",
+      "skills": ["skills/red-flags-and-triage", "skills/visit-communication", "skills/safety-limits"],
+      "approval": "none",
+      "notes": "緊急サインを先に除外する。診断名を言わない。"
+    },
+    {
+      "id": "medication-check",
+      "title": "薬・サプリの確認",
+      "keywords": {
+        "strong": [
+          "飲み合わせ", "副作用", "この薬", "サプリ", "頓服", "抗生物質",
+          "服薬", "薬が余っ", "ジェネリック", "市販薬", "湿布",
+          "眠くなる薬", "薬を飲み忘れ", "お薬手帳", "薬剤師"
+        ],
+        "weak": ["薬", "処方", "服用", "錠剤", "カプセル"]
+      },
+      "patterns": ["(薬|サプリ|漢方).{0,8}(飲み合わせ|併用|副作用|大丈夫)"],
+      "playbook": "playbooks/medication-check.md",
+      "skills": ["skills/medication-safety", "skills/medical-evidence-sources", "skills/safety-limits"],
+      "approval": "none",
+      "notes": "相互作用の断定をしない。薬剤師・医師への確認事項として渡す。"
+    },
+    {
+      "id": "test-results",
+      "title": "検査結果・健診の理解",
+      "keywords": {
+        "strong": [
+          "健康診断", "健診結果", "人間ドック", "血液検査", "尿検査",
+          "コレステロール", "血糖", "hba1c", "肝機能", "腎機能",
+          "腫瘍マーカー", "要再検査", "要精密検査", "レントゲン結果",
+          "mriの結果", "ctの結果", "心電図", "基準値"
+        ],
+        "weak": ["検査結果", "数値が高い", "数値が低い", "結果を見て"]
+      },
+      "patterns": ["(検査|健診|数値).{0,8}(結果|見方|高い|低い|基準)"],
+      "playbook": "playbooks/test-results.md",
+      "skills": ["skills/medical-evidence-sources", "skills/health-records", "skills/safety-limits"],
+      "approval": "none",
+      "notes": "基準値は年齢・性別・施設で異なる。単独の数値で診断しない。"
+    },
+    {
+      "id": "visit-prep",
+      "title": "受診・診察の準備",
+      "keywords": {
+        "strong": [
+          "診察の前", "医師に聞く", "医師に何を", "セカンドオピニオン",
+          "受診の準備", "症状のメモ", "紹介状", "病院の選び方",
+          "診療科", "かかりつけ医", "診察室で", "先生に伝える"
+        ],
+        "weak": ["受診", "診察", "病院", "医師", "相談"]
+      },
+      "patterns": ["(医師|先生).{0,10}(聞きたい|聞くこと|伝え方|質問)"],
+      "playbook": "playbooks/visit-prep.md",
+      "skills": ["skills/visit-communication", "skills/health-records"],
+      "approval": "none",
+      "notes": "短い診察時間で伝わる形に。質問は優先順に 3 つ以内。"
+    },
+    {
+      "id": "mental-health",
+      "title": "メンタルヘルス",
+      "keywords": {
+        "strong": [
+          "眠れない", "不眠", "不安が強い", "うつ", "気分の落ち込み",
+          "心療内科", "精神科", "パニック", "ストレスが限界",
+          "やる気が出ない", "涙が止まらない", "カウンセリング",
+          "適応障害", "メンタルクリニック"
+        ],
+        "weak": ["メンタル", "不安", "ストレス", "眠気", "気分"]
+      },
+      "patterns": ["(眠れ|寝られ).{0,3}(ない|ず)", "(会社|仕事).{0,8}(行けない|つらい|限界)"],
+      "playbook": "playbooks/mental-health.md",
+      "skills": ["skills/red-flags-and-triage", "skills/visit-communication", "skills/safety-limits"],
+      "approval": "none",
+      "notes": "自傷・希死念慮のサインがあれば override。無理に話を引き出さない。"
+    },
+    {
+      "id": "prevention",
+      "title": "予防・生活習慣",
+      "keywords": {
+        "strong": [
+          "予防接種", "ワクチン", "検診の時期", "がん検診", "生活習慣病",
+          "運動不足", "食事改善", "禁煙", "減酒", "睡眠改善", "肥満",
+          "血圧が高い", "糖尿病予防", "骨粗鬆症", "メタボ"
+        ],
+        "weak": ["予防", "健康", "運動", "食事", "睡眠", "禁煙"]
+      },
+      "patterns": ["(予防|検診|ワクチン).{0,8}(いつ|受ける|スケジュール|必要)"],
+      "playbook": "playbooks/prevention.md",
+      "skills": ["skills/medical-evidence-sources", "skills/health-records"],
+      "approval": "none",
+      "notes": "公的検診の対象年齢・間隔は自治体で異なる。自治体の案内を一次情報にする。"
+    },
+    {
+      "id": "family-care",
+      "title": "家族・介護の健康管理",
+      "keywords": {
+        "strong": [
+          "子どもが熱", "子供の症状", "赤ちゃん", "乳児", "小児",
+          "予防接種スケジュール", "高齢の親", "親の通院", "介護",
+          "認知症", "転倒", "おむつ", "デイサービス", "ケアマネ",
+          "老老介護", "親の服薬"
+        ],
+        "weak": ["家族", "息子", "娘", "父", "母", "介護", "子ども"]
+      },
+      "patterns": ["(子ども|子供|赤ちゃん|親|母|父).{0,10}(熱|症状|病院|介護|薬)"],
+      "playbook": "playbooks/family-care.md",
+      "skills": ["skills/red-flags-and-triage", "skills/health-records", "skills/visit-communication", "skills/safety-limits"],
+      "approval": "none",
+      "notes": "本人の同意とプライバシーに配慮する。受診の主体は本人。"
+    }
+  ],
+  "clarify": {
+    "questions": [
+      "どなたの症状ですか (ご本人 / お子さん / ご家族) と年齢を教えてください",
+      "いつから、どのような症状ですか。急に始まりましたか",
+      "持病、服薬中の薬、アレルギー、妊娠の可能性はありますか",
+      "今いちばん心配なことは何ですか"
+    ]
+  }
+}

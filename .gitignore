@@ -1,0 +1,6 @@
+works/*/data/
+works/*/state/
+.env
+.DS_Store
+__pycache__/
+.agents/.cache/

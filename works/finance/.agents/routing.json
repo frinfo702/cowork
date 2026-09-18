@@ -1,0 +1,229 @@
+{
+  "domain": "finance",
+  "description": "個人の資産管理・最適化・運用サポートの業務ルーター。",
+  "rules": [
+    {
+      "id": "emergency-financial",
+      "title": "生活資金の緊急対応",
+      "override": true,
+      "priority": 100,
+      "keywords": {
+        "strong": [
+          "生活できない", "お金がない", "支払えない", "払えない", "差し押さえ",
+          "滞納", "自己破産", "債務整理", "債務超過", "給料が入らない",
+          "失業した", "倒産した", "生活費が尽きる", "リボ払いが返せない",
+          "督促が来た", "借金が返せない"
+        ],
+        "weak": ["借金", "督促", "破産", "滞納", "生活費", "無職"]
+      },
+      "patterns": ["(家賃|ローン|公共料金).{0,8}(払えない|滞納)", "(明日|今月).{0,6}(お金|生活費).{0,4}(ない|足り)"],
+      "playbook": "playbooks/emergency-financial.md",
+      "skills": ["skills/evidence-and-disclosure"],
+      "approval": "escalate",
+      "escalation": "自治体の生活相談窓口 / 社会福祉協議会の生活福祉資金貸付 / 法テラス 0570-078374。債務整理は弁護士・司法書士へ。",
+      "notes": "投資の話をしない。生活の安定が最優先。"
+    },
+    {
+      "id": "scam-check",
+      "title": "投資詐欺・勧誘の検証",
+      "override": true,
+      "priority": 100,
+      "keywords": {
+        "strong": [
+          "元本保証", "絶対儲かる", "必ず儲かる", "未公開株", "高利回り",
+          "投資勧誘", "儲かる話", "必ず増える", "出金できない", "海外fx",
+          "バイナリー", "ペーパーカンパニー", "社債の勧誘", "lineで投資",
+          "snsで投資", "コンサル料", "情報商材", "aiが運用", "自動売買"
+        ],
+        "weak": ["勧誘", "紹介された", "怪しい", "儲かり", "もうけ", "投資話"]
+      },
+      "patterns": [
+        "(絶対|必ず).{0,4}(儲|もうけ|増え|増やせ)",
+        "(元本|元金).{0,3}(保証|割れない|保証付き)",
+        "(line|ライン|telegram|テレグラム|instagram|dm).{0,10}(投資|儲|先生|サポート)"
+      ],
+      "playbook": "playbooks/scam-check.md",
+      "skills": ["skills/scam-patterns"],
+      "approval": "escalate",
+      "escalation": "消費者ホットライン 188 / 警察相談専用電話 #9110 / 金融庁 0570-016811。送金前なら間に合う。",
+      "notes": "相手の言い分を検証しない。まず送金と追加の個人情報提供を止める。"
+    },
+    {
+      "id": "portfolio-review",
+      "title": "資産の棚卸し・現状把握",
+      "keywords": {
+        "strong": [
+          "資産の棚卸し", "保有資産", "資産の内訳", "ポートフォリオ", "純資産",
+          "残高をまとめ", "資産を整理", "今の資産", "保有銘柄", "口座の一覧",
+          "資産が見えない", "全体像"
+        ],
+        "weak": ["資産", "保有", "残高", "口座", "内訳"]
+      },
+      "patterns": ["(資産|保有|口座).{0,8}(棚卸|整理|一覧|まとめ|見える化|把握)"],
+      "playbook": "playbooks/portfolio-review.md",
+      "skills": ["skills/portfolio-analysis", "skills/fee-and-cost-audit", "skills/evidence-and-disclosure"],
+      "approval": "none",
+      "notes": "分類と集計だけを行い、評価・売買判断は次の playbook に送る。"
+    },
+    {
+      "id": "allocation-plan",
+      "title": "資産配分の設計",
+      "keywords": {
+        "strong": [
+          "アセットアロケーション", "資産配分", "配分を決め", "何に投資",
+          "投資方針", "インデックスの割合", "投資デビュー", "投資を始め",
+          "新nisaで何", "積立の設定", "コア・サテライト", "ポートフォリオを組"
+        ],
+        "weak": ["配分", "割合", "積立", "投資方針", "はじめて"]
+      },
+      "patterns": ["(投資|資産).{0,6}(始め|はじめ|デビュー)", "(何|どれ).{0,4}(に|へ).{0,3}投資"],
+      "playbook": "playbooks/allocation-plan.md",
+      "skills": ["skills/risk-and-diversification", "skills/life-planning-math", "skills/portfolio-analysis"],
+      "approval": "confirm",
+      "notes": "年齢や流行で型を押し付けない。目標・時間軸・リスク許容度・生活防衛資金から導く。"
+    },
+    {
+      "id": "risk-check",
+      "title": "集中リスク・分散の確認",
+      "keywords": {
+        "strong": [
+          "集中リスク", "分散できて", "リスクを確認", "暴落に耐え", "ストレステスト",
+          "下落の影響", "同じ銘柄ばかり", "偏り", "リスク許容度", "含み損が怖い",
+          "ボラティリティ", "最大下落"
+        ],
+        "weak": ["リスク", "分散", "暴落", "下落", "変動", "怖い"]
+      },
+      "patterns": ["(下落|暴落|下落率).{0,6}(どのくらい|耐え|影響)"],
+      "playbook": "playbooks/risk-check.md",
+      "skills": ["skills/risk-and-diversification", "skills/portfolio-analysis"],
+      "approval": "none",
+      "notes": "不安を煽らない。数字で耐性を示し、選択肢を添える。"
+    },
+    {
+      "id": "cost-tax-review",
+      "title": "コストと税制の最適化",
+      "keywords": {
+        "strong": [
+          "信託報酬", "販売手数料", "投資コスト", "コストを比較", "nisa枠",
+          "idecoの節税", "ふるさと納税", "損益通算", "確定申告", "節税",
+          "税金を最適化", "非課税枠", "特定口座", "繰越控除", "税制優遇"
+        ],
+        "weak": ["手数料", "税金", "コスト", "節税", "非課税", "控除", "nisa", "ideco", "枠"]
+      },
+      "patterns": ["(手数料|コスト|税金).{0,8}(見直|比較|削減|最適|安く)"],
+      "playbook": "playbooks/cost-tax-review.md",
+      "skills": ["skills/fee-and-cost-audit", "skills/japan-tax-systems"],
+      "approval": "none",
+      "notes": "税制は改正される。国税庁・金融庁の一次情報で確認日を付けて示す。"
+    },
+    {
+      "id": "rebalance",
+      "title": "リバランス",
+      "keywords": {
+        "strong": ["リバランス", "比率がずれ", "配分を戻", "ウェイトを戻", "ターゲット比率", "乖離幅"],
+        "weak": ["比率", "ずれ", "売買", "調整"]
+      },
+      "patterns": ["(比率|ウェイト|配分).{0,8}(ずれ|乖離|戻|調整)"],
+      "playbook": "playbooks/rebalance.md",
+      "skills": ["skills/risk-and-diversification", "skills/japan-tax-systems"],
+      "approval": "confirm",
+      "notes": "売却より新規買付での調整を先に検討する。売買はユーザーが執行する。"
+    },
+    {
+      "id": "cashflow-fund",
+      "title": "家計・生活防衛資金",
+      "keywords": {
+        "strong": [
+          "生活防衛資金", "緊急資金", "貯金を増や", "家計簿", "毎月の支出",
+          "収支を改善", "固定費の削減",           "マネーフォワード", "支出を減ら",
+          "貯まらない", "給料日前に", "赤字家計", "家計が苦しい", "貯金ができない"
+        ],
+        "weak": ["家計", "貯金", "支出", "予算", "収支", "固定費"]
+      },
+      "patterns": [
+        "(毎月|給料).{0,6}(足り|余ら|貯まら)",
+        "(支出|固定費).{0,6}(削減|見直)",
+        "(貯金|貯蓄|お金).{0,8}(できない|貯まらない|足りない)"
+      ],
+      "playbook": "playbooks/cashflow-fund.md",
+      "skills": ["skills/life-planning-math"],
+      "approval": "none",
+      "notes": "投資より先にキャッシュフロー。生活防衛資金の目標は収入の安定性で変える。"
+    },
+    {
+      "id": "insurance-review",
+      "title": "保険の見直し",
+      "keywords": {
+        "strong": [
+          "生命保険", "医療保険", "保険を見直", "保険を解約", "掛け捨て",
+          "保険を比較", "共済", "学資保険", "個人賠償", "収入保障保険",
+          "保険料が高い", "重複した保険"
+        ],
+        "weak": ["保険", "保険料", "保障", "共済"]
+      },
+      "patterns": ["(保険|保障).{0,8}(見直|解約|比較|高い|必要)"],
+      "playbook": "playbooks/insurance-review.md",
+      "skills": ["skills/fee-and-cost-audit", "skills/risk-and-diversification"],
+      "approval": "none",
+      "notes": "貯蓄型を投資として評価しない。必要な保障額を先に計算する。"
+    },
+    {
+      "id": "goal-planning",
+      "title": "目標別の資金計画",
+      "keywords": {
+        "strong": [
+          "老後資金", "老後にいくら", "教育資金", "住宅頭金", "fire",
+          "何歳で引退", "ライフプラン", "結婚資金", "出産費用", "住宅ローン繰上",
+          "いくら必要", "目標金額", "取り崩し", "年金繰下げ", "セカンドライフ"
+        ],
+        "weak": ["老後", "教育費", "住宅", "ライフイベント", "引退", "年金", "目標"]
+      },
+      "patterns": ["(老後|教育|住宅|結婚).{0,8}(いくら|資金|費用|必要)"],
+      "playbook": "playbooks/goal-planning.md",
+      "skills": ["skills/life-planning-math", "skills/risk-and-diversification"],
+      "approval": "confirm",
+      "notes": "複数目標は優先順位と資金源を分ける。虚偽の精度を出さない。"
+    },
+    {
+      "id": "product-eval",
+      "title": "金融商品の評価",
+      "keywords": {
+        "strong": [
+          "この投資信託", "この商品", "買うべき", "etfを比較", "個別株どう",
+          "ファンドを比較", "目論見書", "運用報告書", "インデックスファンド",
+          "アクティブファンド", "債券etf", "レバレッジ", "テーマ型"
+        ],
+        "weak": ["投資信託", "etf", "ファンド", "個別株", "商品", "銘柄"]
+      },
+      "patterns": ["(この|その).{0,10}(商品|ファンド|投信|etf|株).{0,6}(どう|評価|買)"],
+      "playbook": "playbooks/product-eval.md",
+      "skills": ["skills/fee-and-cost-audit", "skills/evidence-and-disclosure"],
+      "approval": "none",
+      "notes": "断定的な売買推奨をしない。比較軸と一次情報を示し、最終判断はユーザー。"
+    },
+    {
+      "id": "account-setup",
+      "title": "口座・制度の開始手続き",
+      "keywords": {
+        "strong": [
+          "証券口座を開設", "nisa口座", "idecoを始め", "口座を移管",
+          "銀行口座を変", "引き落とし設定", "口座開設", "nisaを始め",
+          "idecoの申込", "証券会社を比較", "ネット証券"
+        ],
+        "weak": ["口座開設", "申込", "手続き", "移管", "証券会社"]
+      },
+      "patterns": ["(口座|nisa|ideco).{0,10}(開設|申込|始め|はじめ|移管|変更)"],
+      "playbook": "playbooks/account-setup.md",
+      "skills": ["skills/japan-tax-systems", "skills/evidence-and-disclosure"],
+      "approval": "none",
+      "notes": "手順と注意点を出す。本人確認書類やログイン情報は受け取らない。"
+    }
+  ],
+  "clarify": {
+    "questions": [
+      "いまやりたいことはどれですか: 現状把握 / 配分の設計 / コスト・税の見直し / リスク確認 / 目標別の計画 / 商品の評価 / 口座手続き",
+      "対象は何ですか: 現金・預金 / 株式・投資信託 / 保険 / 年金(iDeCo等) / 不動産 / その他",
+      "いつまでに、何のために必要なお金ですか (例: 老後、住宅、教育、特に期限なし)"
+    ]
+  }
+}

@@ -1,0 +1,211 @@
+{
+  "domain": "legal",
+  "description": "個人向け法律・契約サポートの業務ルーター。",
+  "rules": [
+    {
+      "id": "deadline-urgent",
+      "title": "期限・時効の緊急確認",
+      "override": true,
+      "priority": 100,
+      "keywords": {
+        "strong": [
+          "時効", "期限が明日", "期限が今日", "昨日解雇", "支払督促",
+          "訴状", "差押え", "差し押さえ", "退去通知", "内容証明が届",
+          "催告書", "督促状", "呼出状", "答弁書", "異議申立ての期限",
+          "労働審判", "少額訴訟", "簡易裁判所から"
+        ],
+        "weak": ["期限", "督促", "通知書", "裁判所", "書類が届", "申立て"]
+      },
+      "patterns": ["(今週|明日|今日|○日以内).{0,8}(提出|回答|支払|対応)", "裁判所.{0,10}(書類|通知|呼出)"],
+      "playbook": "playbooks/deadline-urgent.md",
+      "skills": ["skills/legal-limits-and-ethics", "skills/evidence-records"],
+      "approval": "escalate",
+      "escalation": "法テラス 0570-078374 / 弁護士会の法律相談 / 司法書士 (登記・簡裁代理) / 自治体の無料相談。期限がある書類は今日中に専門家へ。",
+      "notes": "期限を逃すと権利を失う。分析より先に期限の確認と専門家接続。"
+    },
+    {
+      "id": "criminal-risk",
+      "title": "刑事事件の緊急対応",
+      "override": true,
+      "priority": 100,
+      "keywords": {
+        "strong": [
+          "逮捕", "逮捕状", "警察に呼ばれた", "取調べ", "留置", "勾留",
+          "告訴", "被害届", "刑事事件", "犯罪の疑い", "家宅捜索",
+          "任意同行", "身柄"
+        ],
+        "weak": ["警察", "刑事", "告訴", "事件"]
+      },
+      "patterns": ["(警察|検察).{0,8}(呼ばれ|来た|連絡|事情聴取|調べ)"],
+      "playbook": "playbooks/criminal-risk.md",
+      "skills": ["skills/legal-limits-and-ethics", "skills/evidence-records"],
+      "approval": "escalate",
+      "escalation": "当番弁護士制度 (警察署で申請) / 法テラス 0570-078374。今すぐ弁護士に会う。",
+      "notes": "取り調べへの対応をエージェントが指示しない。弁護士に会うまで話さない権利を伝える。"
+    },
+    {
+      "id": "employment-contract",
+      "title": "雇用・業務委託契約の確認",
+      "keywords": {
+        "strong": [
+          "雇用契約", "労働条件通知書", "オファーレター", "内定通知",
+          "試用期間", "競業避止", "副業規定", "転勤", "配転",
+          "業務委託契約", "委任契約", "業務委託料", "再委託", "著作権の帰属",
+          "秘密保持契約", "nda"
+        ],
+        "weak": ["契約書", "契約", "入社", "条件", "報酬", "就業規則"]
+      },
+      "patterns": ["(契約書|条件|通知書).{0,8}(見て|確認|レビュー|読んで)", "(入社|転職|受注).{0,6}(前|にあた)"],
+      "playbook": "playbooks/employment-contract.md",
+      "skills": ["skills/contract-review-method", "skills/jp-employment-law"],
+      "approval": "confirm",
+      "notes": "労働法の強行規定に反する条項は無効になり得る。条文と根拠を示す。"
+    },
+    {
+      "id": "workplace-dispute",
+      "title": "職場トラブル・退職・未払い",
+      "keywords": {
+        "strong": [
+          "解雇", "退職を強要", "退職代行", "残業代", "未払い給料", "未払い残業",
+          "パワハラ", "セクハラ", "マタハラ", "ハラスメント", "有給が使えない",
+          "降格", "出向", "退職勧奨", "雇い止め", "不当解雇", "労働審判"
+        ],
+        "weak": ["残業", "退職", "給料", "上司", "職場", "有給", "異動"]
+      },
+      "patterns": ["(残業代|給料|賃金).{0,8}(払われ|未払い|もらえ)", "(辞め|やめ).{0,6}(させ|ろ|強要)"],
+      "playbook": "playbooks/workplace-dispute.md",
+      "skills": ["skills/jp-employment-law", "skills/dispute-negotiation", "skills/evidence-records"],
+      "approval": "escalate",
+      "escalation": "労働基準監督署 / 総合労働相談コーナー (都道府県労働局) / 労働審判・あっせん / 法テラス。時効 (賃金請求権) に注意。",
+      "notes": "証拠保全が最優先。感情的な退職・退職代行の前に事実と選択肢を整理する。"
+    },
+    {
+      "id": "housing-lease",
+      "title": "賃貸・住まいのトラブル",
+      "keywords": {
+        "strong": [
+          "賃貸契約", "入居", "退去", "原状回復", "敷金", "礼金", "更新料",
+          "家賃交渉", "修繕", "漏水", "騒音", "隣人", "管理会社", "大家",
+          "立ち退き", "退去費用", "特約", "保証会社"
+        ],
+        "weak": ["賃貸", "アパート", "マンション", "家賃", "契約更新", "故障"]
+      },
+      "patterns": ["(退去|原状回復|敷金|修繕).{0,8}(費用|請求|トラブル|返還|高い)"],
+      "playbook": "playbooks/housing-lease.md",
+      "skills": ["skills/jp-housing-law", "skills/contract-review-method", "skills/dispute-negotiation"],
+      "approval": "confirm",
+      "notes": "原状回復はガイドラインと特約の有効性を分けて検討する。"
+    },
+    {
+      "id": "business-legal",
+      "title": "個人事業・会社経営の法務",
+      "keywords": {
+        "strong": [
+          "法人設立", "個人事業主", "開業届", "定款", "株式会社", "合同会社",
+          "取締役", "株主", "資金調達", "許認可", "従業員を雇", "就業規則",
+          "インボイス", "下請法", "フリーランス新法", "取引先との契約",
+          "事業用賃貸", "会社の契約"
+        ],
+        "weak": ["起業", "会社", "事業", "経営", "法人", "開業", "従業員"]
+      },
+      "patterns": ["(会社|法人|個人事業).{0,8}(作|設立|始め|はじめ|運営)"],
+      "playbook": "playbooks/business-legal.md",
+      "skills": ["skills/jp-employment-law", "skills/contract-review-method", "skills/legal-limits-and-ethics"],
+      "approval": "confirm",
+      "notes": "個人向けと法人向けの制度が混ざる。立場 (個人/事業者) を最初に確認する。"
+    },
+    {
+      "id": "consumer-dispute",
+      "title": "消費者トラブル・解約・返金",
+      "keywords": {
+        "strong": [
+          "解約できない", "返金", "返品", "定期購入", "サブスク解約", "通信販売",
+          "クーリングオフ", "消費者契約法", "不当表示", "高額請求",
+          "悪質商法", "訪問販売", "投資以外の詐欺", "消費者センター"
+        ],
+        "weak": ["解約", "返金", "購入", "契約トラブル", "請求", "通販"]
+      },
+      "patterns": ["(解約|返金|返品).{0,8}(できない|してほしい|したい|拒否)"],
+      "playbook": "playbooks/consumer-dispute.md",
+      "skills": ["skills/dispute-negotiation", "skills/evidence-records", "skills/legal-limits-and-ethics"],
+      "approval": "none",
+      "notes": "記録と時系列が鍵。相談先は消費生活センター 188。"
+    },
+    {
+      "id": "privacy-terms",
+      "title": "個人情報・規約・法的表示",
+      "keywords": {
+        "strong": [
+          "プライバシーポリシー", "個人情報保護法", "利用規約", "特定商取引法",
+          "cookie", "gdpr", "開示請求", "削除請求", "訂正請求", "第三者提供",
+          "オプトアウト", "安全管理措置"
+        ],
+        "weak": ["個人情報", "規約", "ポリシー", "同意", "データ"]
+      },
+      "patterns": ["(規約|ポリシー).{0,8}(作成|見直|チェック|必要)"],
+      "playbook": "playbooks/privacy-terms.md",
+      "skills": ["skills/contract-review-method", "skills/legal-limits-and-ethics"],
+      "approval": "confirm",
+      "notes": "個人事業主・小規模事業者のサービス向けの実務チェックリストとして使う。"
+    },
+    {
+      "id": "legal-drafting",
+      "title": "契約書・通知書のドラフト",
+      "keywords": {
+        "strong": [
+          "契約書を作り", "契約書を作成", "覚書", "合意書", "念書", "示談書",
+          "通知書", "催告書", "内容証明", "協議書", "離婚協議書",
+          "誓約書", "同意書", "委任状", "遺言書"
+        ],
+        "weak": ["文書", "書類", "作成", "ドラフト", "書面"]
+      },
+      "patterns": ["(契約書|通知書|合意書|覚書|内容証明).{0,8}(作り|作成|書い|ドラフト)"],
+      "playbook": "playbooks/legal-drafting.md",
+      "skills": ["skills/contract-review-method", "skills/legal-limits-and-ethics", "skills/evidence-records"],
+      "approval": "confirm",
+      "notes": "送付前にユーザーが内容と宛先を確認する。送付はユーザーが行う。"
+    },
+    {
+      "id": "legal-research",
+      "title": "法令・判例の調査",
+      "keywords": {
+        "strong": [
+          "条文", "判例", "最高裁", "高等裁判所", "e-gov", "法令検索",
+          "どの法律", "法的にどう", "違法なのか", "適法なのか", "法律を調べ",
+          "判決", "裁判例", "通達", "ガイドライン"
+        ],
+        "weak": ["法律", "違法", "合法", "裁判", "法律相談", "改正"]
+      },
+      "patterns": ["(法律|法令|判例|条文).{0,8}(調べ|検索|確認|教えて)", "(これ|この行為).{0,6}(違法|合法)"],
+      "playbook": "playbooks/legal-research.md",
+      "skills": ["skills/jp-statute-research", "skills/legal-limits-and-ethics"],
+      "approval": "none",
+      "notes": "一次情報 (e-Gov、裁判所) のみを引用する。まとめサイトを使わない。"
+    },
+    {
+      "id": "lawyer-prep",
+      "title": "弁護士相談の準備",
+      "keywords": {
+        "strong": [
+          "弁護士に相談", "相談の準備", "弁護士を探し", "法テラス", "相談料",
+          "何を持って行く", "相談時に", "法律事務所", "弁護士費用",
+          "着手金", "成功報酬"
+        ],
+        "weak": ["弁護士", "相談", "専門家", "費用"]
+      },
+      "patterns": ["(弁護士|専門家).{0,8}(相談|探し|依頼)"],
+      "playbook": "playbooks/lawyer-prep.md",
+      "skills": ["skills/evidence-records", "skills/legal-limits-and-ethics"],
+      "approval": "none",
+      "notes": "相談の質は準備で決まる。時系列、論点、希望、予算を 1 枚にまとめる。"
+    }
+  ],
+  "clarify": {
+    "questions": [
+      "あなたの立場はどれですか: 雇用される側 / 事業者 / 消費者 / 借主 / その他",
+      "相手方は誰ですか (会社、大家、取引先、個人など)",
+      "何を実現したいですか: 予防 (契約前の確認) / 交渉 / 紛争の解決 / 文書作成 / 調査",
+      "期限や届いている書類はありますか"
+    ]
+  }
+}
