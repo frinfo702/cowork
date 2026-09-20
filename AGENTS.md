@@ -1,193 +1,193 @@
 # cowork
 
-個人生活をエージェントに任せるためのモノレポ。Claude Cowork / GPT work の思想を、専門領域ごとの独立した agent distro に分割して実装する。
+A monorepo for delegating personal life to agents. It takes the ideas of Claude Cowork / GPT work and implements them as independent agent distros, one per domain.
 
-ユーザーが対話するのは常に primary agent 一人だけ。意思決定はすべて TypeSafe Jev (`jev-latest`) の型付き分類で行い、確率と確信度で行動を変える。Jev が使えないときは決定論的ルーターが同じ判定を返す。
+The user always talks to a single primary agent. Every decision runs through typed classification by TypeSafe Jev (`jev-latest`), and behavior changes with probability and confidence. When Jev is unavailable, a deterministic router returns the same judgment.
 
-## レイアウト
+## Layout
 
 ```
-AGENTS.md                      このファイル。モノレポ全体の契約
+AGENTS.md                      this file. The monorepo-wide contract
 .opencode/plugins/
-  answer-guard.js              回答 hooks。Jev で出力を検品し、過剰ブロックを削る
+  answer-guard.js              reply hooks. Inspects output with Jev and trims overblocking
 .agents/
-  scripts/jev.py               Jev クライアント (キャッシュ、伏字化、リトライ、検証)
-  scripts/guard.py             回答ガード (answered/over_answer/ai_speak とブロック選別)
-  scripts/route.py             Jev-first ルーター (1 コールで playbook/skills/agent/format を判定)
-  scripts/decide.py            実行中の意思決定カタログ (escalate, grounded, delegate など)
-  decisions.json               意思決定カタログ (Jev の質問定義とオフライン policy)
-  routing.json                 領域ルーターの分類データ
-  agents/worker.md             委任ワーカー (pstack の agent 構成)
-  agents/verifier.md           読み取り専用の独立検証者
-  skills/                      汎用 skills (公式 skill のコピーを優先)
-    typesafe-ai/               TypeSafe 公式 skill
-    principle-*/               pstack 式の行動原則 (12 種)
+  scripts/jev.py               Jev client (cache, redaction, retries, validation)
+  scripts/guard.py             reply guard (answered/over_answer/ai_speak and block triage)
+  scripts/route.py             Jev-first router (one call decides playbook/skills/agent/format)
+  scripts/decide.py            runtime decision catalog (escalate, grounded, delegate, ...)
+  decisions.json               decision catalog (Jev question definitions and offline policy)
+  routing.json                 domain router classification data
+  agents/worker.md             delegation worker (pstack agent setup)
+  agents/verifier.md           read-only independent verifier
+  skills/                      shared skills (prefer copies of official skills)
+    typesafe-ai/               official TypeSafe skill
+    principle-*/               pstack-style operating principles
 works/
-  finance/AGENTS.md            金融・資産管理の primary agent 契約
+  finance/AGENTS.md            finance and asset management primary agent contract
   finance/.agents/
-    routing.json               業務ルーターの分類データ
-    playbooks/*.md             業務フロー (ルーティング先)
-    skills/*/SKILL.md          専門知識モジュール
-  legal/                       法律・契約 (同じ構成)
-  medical/                     医療・健康 (同じ構成)
-  ml-research/                 ML研究 (同じ構成)
+    routing.json               business router classification data
+    playbooks/*.md             business flows (routing targets)
+    skills/*/SKILL.md          domain knowledge modules
+  legal/                       law and contracts (same setup)
+  medical/                     health and medicine (same setup)
+  ml-research/                 ML research (same setup)
 ```
 
-各 `works/<domain>/` は `.git` を持たないが、独立したリポジトリとして開発する前提で自己完結させる。汎用 skills だけは `.agents/skills/` に置き、領域からは相対パス `../../.agents/skills/` で読む。
+Each `works/<domain>/` has no `.git`, but is developed as if it were an independent repository, so it stays self-contained. Only shared skills live in `.agents/skills/`, and domains read them through the relative path `../../.agents/skills/`.
 
-## primary-only 原則
+## primary-only principle
 
-1. ユーザーと対話するのは primary agent だけ。サブエージェントはユーザーに直接話しかけない。ユーザーに「別のエージェントに聞いて」と言わない。
-2. 意思決定は毎ターン最初に `route.py`、作業中は `decide.py` を実行して決める。推測で playbook を選ばない。
-3. ルーターの `decision` に従う。
-   - `override`: 安全上の上書き。playbook に直ちに従い、`escalation` を提示する。
-   - `route`: `playbook` と `skills` を読み、`agents` の指示に従って委任し、`format` に従って成果物を作る。
-   - `clarify`: `clarify_questions` をユーザーに聞く。作業を始めない。
-4. primary agent の作業範囲は調査・分析・計画・文書ドラフトまで。契約締結、送金、売買執行、投稿など不可逆な実行はユーザー本人が行う。
-5. 個人データ (資産額、契約内容、症状、研究データ) は `works/<domain>/data/` にだけ書く。`.agents/` や routing.json などの追跡対象ファイルには絶対に書かない。Jev へ送る state は `route.py` / `decide.py` が自動で伏字化する。
+1. The user talks to the primary agent and nobody else. Subagents never address the user. Never tell the user to "ask another agent".
+2. Decide every turn by running `route.py` first, and `decide.py` while working. Never guess a playbook.
+3. Follow the router's `decision`.
+   - `override`: a safety override. Follow the playbook immediately and present `escalation`.
+   - `route`: read `playbook` and `skills`, delegate per `agents`, and build the deliverable per `format`.
+   - `clarify`: ask only `clarify_questions`. Do not start work.
+4. The primary agent's scope is research, analysis, planning, and document drafts. Irreversible actions such as signing contracts, sending money, executing trades, and posting are done by the user.
+5. Write personal data (asset amounts, contract terms, symptoms, research data) only under `works/<domain>/data/`. Never write it to tracked files such as `.agents/` or routing.json. State sent to Jev is redacted automatically by `route.py` / `decide.py`.
 
-## 回答規範
+## Reply discipline
 
-1. 聞かれたことにだけ答える。背景・先回り・代替案・次のステップ・まとめを足さない。分からないことはユーザーが聞き返す。
-2. 一度に全部説明しない。単純な質問は 1〜3 文、手順や比較が必要なときだけ箇条書き。
-3. 前置き・復唱・免責・「いかがでしょうか」を書かない。`unslop` skill に従う。
-4. 完了報告は「やったこと・検証結果・気づき」だけ。
-5. 240 文字以上の回答は `.opencode/plugins/answer-guard.js` が `text.complete` で Jev 検品し、過剰ブロックを削る。判定ログは `.agents/.cache/guard/log.jsonl`。過剰判定のあとは次ターンの system prompt に注意が入る。`TYPESAFE_API_KEY` 未設定時は何もしない。
+1. Answer only what was asked. Do not add background, anticipatory advice, alternatives, next steps, or summaries. When something is unclear, the user asks again.
+2. Do not explain everything at once. Simple questions get 1-3 sentences; use bullets only when steps or comparisons require them.
+3. No preambles, no restating the question, no disclaimers, no "how does that sound?". Follow the `unslop` skill.
+4. Completion reports contain only what was done, verification results, and findings.
+5. Replies of 240 characters or more are inspected by `.opencode/plugins/answer-guard.js` at `text.complete` via Jev, which trims overblocking. Judgment logs live in `.agents/.cache/guard/log.jsonl`. After an overblock, the next turn's system prompt carries a note. When `TYPESAFE_API_KEY` is unset, nothing happens.
 
-## 意思決定アーキテクチャ
+## Decision architecture
 
-すべての実行時判断は Jev の 3 プリミティブ (noul / choice / score) に落ちる。1 リクエストで並列に評価し、70〜500ms で返る。
+Every runtime judgment reduces to Jev's 3 primitives (noul / choice / score). They are evaluated in parallel in one request and return in 70-500 ms.
 
-### 1. ターン開始: `route.py`
+### 1. Turn start: `route.py`
 
 ```sh
 printf '%s' "$PROMPT" | python3 .agents/scripts/route.py --routing .agents/routing.json --json
 ```
 
-1 コールで次を同時に判定する。
+One call decides all of the following at once.
 
-| 質問 | 型 | 用途 |
+| question | type | purpose |
 |---|---|---|
-| `safety` | choice | 安全上の override (詐欺、救急、期限、刑事) の検出 |
-| `playbook` | choice | 業務フローの選択 |
-| `skill:*` | noul | 各専門知識モジュールを読むべきか |
-| `clarify` | noul | 前提不足でユーザー確認が必要か |
-| `delegate` | noul | サブエージェントに委任すべきか |
-| `verify` | noul | 独立検証が必要か |
-| `format` | choice | 成果物の形式 (xlsx / docx / pdf / pptx) |
+| `safety` | choice | detect safety overrides (fraud, emergency, deadline, criminal) |
+| `playbook` | choice | select the business flow |
+| `skill:*` | noul | whether to read each domain knowledge module |
+| `clarify` | noul | whether missing premises require asking the user |
+| `delegate` | noul | whether to delegate to a subagent |
+| `verify` | noul | whether independent verification is needed |
+| `format` | choice | deliverable format (xlsx / docx / pdf / pptx) |
 
-### 2. 作業中: `decide.py`
+### 2. While working: `decide.py`
 
 ```sh
 printf '%s' "$DRAFT" | python3 .agents/scripts/decide.py grounded cites_sources safety_disclosure
-python3 .agents/scripts/decide.py delegate --state "対象論文が200本ある"
+python3 .agents/scripts/decide.py delegate --state "200 papers to review"
 ```
 
-カタログは `.agents/decisions.json`。`--list` で一覧。Jev が使えない場合は `"source": "unavailable"` と policy が返るので、その policy に従う。
+The catalog is `.agents/decisions.json`. List it with `--list`. When Jev is unavailable, it returns `"source": "unavailable"` plus a policy, and you follow that policy.
 
-### 3. 確信度バンド
+### 3. Confidence bands
 
-| 確信度 | 行動 |
+| confidence | action |
 |---|---|
-| ≥ 0.80 | act。そのまま進める |
-| 0.55 - 0.80 | confirm。前提を確認してから進める |
-| < 0.55 | clarify。質問するか複数案を出す |
+| ≥ 0.80 | act. Proceed as is |
+| 0.55 - 0.80 | confirm. Check the premises before proceeding |
+| < 0.55 | clarify. Ask, or present multiple options |
 
-安全の override は 0.35 で発火する。しきい値は `route.py` / `decisions.json` に集約し、領域データで較正したら理由を記録して変更する。
+Safety overrides fire at 0.35. Thresholds live in `route.py` / `decisions.json`; when you calibrate them with domain data, record the reason and change them there.
 
-### 4. オフライン
+### 4. Offline
 
-`TYPESAFE_API_KEY` が未設定、または Jev がエラー・タイムアウトのときは、`route.py` は keyword ルーターにフォールバックし `meta.source: "keyword"` を返す。`decide.py` は policy を返す。API キーは環境変数のみ。ファイルに書かない。
+When `TYPESAFE_API_KEY` is unset, or Jev errors or times out, `route.py` falls back to the keyword router and returns `meta.source: "keyword"`. `decide.py` returns a policy. The API key exists only as an environment variable. Never write it to a file.
 
-### 5. カタログにない判断
+### 5. Judgments not in the catalog
 
-`decisions.json` にない実行時判断 (どの skill を先に読むか、この下書きは送ってよいか等) は `jev.py` に直接聞く。1 コールに複数の質問を入れてよい。
+For runtime judgments not in `decisions.json` (which skill to read first, whether a draft is safe to send, and so on), ask `jev.py` directly. You may put multiple questions in one call.
 
 ```sh
 printf '%s' '{"state": "…", "questions": {"next_step": {"type": "choice", "instructions": "…", "criteria": {"a": "…", "b": "…"}}}}' | python3 .agents/scripts/jev.py --scrub
 ```
 
-## セッションの始め方
+## Starting a session
 
-モノレポのルートで受けた依頼:
+A request received at the monorepo root:
 
 ```sh
 printf '%s' "$PROMPT" | python3 .agents/scripts/route.py --routing .agents/routing.json --json
 ```
 
-出力の `root` が担当領域。`works/<domain>/AGENTS.md` を読み、その契約に従う。領域内でさらに:
+The `root` in the output is the owning domain. Read `works/<domain>/AGENTS.md` and follow its contract. Inside the domain, route again:
 
 ```sh
 printf '%s' "$PROMPT" | python3 ../../.agents/scripts/route.py --routing .agents/routing.json --json
 ```
 
-領域フォルダを単体で開いた場合は、そのフォルダの `AGENTS.md` が起点になる。ルーターの実体は `../../.agents/scripts/route.py` を参照する (モノレポ前提)。
+When you open a domain folder on its own, that folder's `AGENTS.md` is the entry point. The router itself lives at `../../.agents/scripts/route.py` (the monorepo is the assumption).
 
-## 汎用 skills
+## Shared skills
 
-`.agents/skills/` にある。領域の playbook が必要に応じて `../../.agents/skills/<name>/SKILL.md` を読む。
+They live in `.agents/skills/`. A domain playbook reads `../../.agents/skills/<name>/SKILL.md` when it needs one.
 
-| skill | 用途 |
+| skill | purpose |
 |---|---|
-| `pdf` / `docx` / `xlsx` / `pptx` | ファイル成果物の作成・読み取り |
-| `doc-coauthoring` | 文書の共同執筆ワークフロー |
-| `typesafe-ai` | TypeSafe / Jev の設計ガイド (質問設計、確信度、カスケード) |
-| `unslop` / `bro` | 文章の整形 |
-| `skill-creator` | skill の新規作成・改善 |
-| `principle-*` | 行動原則 (下記) |
+| `pdf` / `docx` / `xlsx` / `pptx` | create and read file deliverables |
+| `doc-coauthoring` | co-authoring workflow for documents |
+| `typesafe-ai` | TypeSafe / Jev design guide (question design, confidence, cascades) |
+| `unslop` / `bro` | prose cleanup |
+| `skill-creator` | create and improve skills |
+| `principle-*` | operating principles (below) |
 
-### principles (pstack 式)
+### principles (pstack-style)
 
-| principle | 適用場面 |
+| principle | when it applies |
 |---|---|
-| `principle-primary-only` | すべてのユーザー対応 |
-| `principle-laziness-protocol` | 新しい skill / playbook / script を足す前 |
-| `principle-source-primary-sources` | 法令・税制・医療・研究の主張 |
-| `principle-facts-over-judgment` | 分析・要約・提案を書くとき |
-| `principle-calibrated-uncertainty` | Jev の確率を使うとき、予測を書くとき |
-| `principle-safety-boundaries-are-hard` | override、承認ゲート、開示を触る前 |
-| `principle-prove-it-works` | 完了宣言の前 |
-| `principle-fix-root-causes` | 同じ失敗が 2 回目 |
-| `principle-guard-the-context-window` | 大量の資料を扱うとき |
-| `principle-never-block-on-the-human` | ユーザーに聞く前に |
-| `principle-encode-lessons-in-structure` | 同じ指示を 2 回書いたとき |
-| `principle-decision-trail` | 長時間・高リスクの作業 |
+| `principle-primary-only` | every user-facing turn |
+| `principle-laziness-protocol` | before adding a skill / playbook / script |
+| `principle-source-primary-sources` | claims about law, tax, medicine, research |
+| `principle-facts-over-judgment` | writing analysis, summaries, proposals |
+| `principle-calibrated-uncertainty` | using Jev probabilities, writing projections |
+| `principle-safety-boundaries-are-hard` | before touching an override, approval gate, or disclosure |
+| `principle-prove-it-works` | before declaring done |
+| `principle-fix-root-causes` | the same failure appears a second time |
+| `principle-guard-the-context-window` | handling large volumes of material |
+| `principle-never-block-on-the-human` | before asking the user |
+| `principle-encode-lessons-in-structure` | you write the same instruction twice |
+| `principle-decision-trail` | long-running or high-risk work |
 
 ### agents
 
-| agent | 用途 |
+| agent | purpose |
 |---|---|
-| `.agents/agents/worker.md` | 委任された調査・大量処理。要約だけを返す |
-| `.agents/agents/verifier.md` | 読み取り専用の独立検証。壊すつもりで読む |
+| `.agents/agents/worker.md` | delegated research and bulk processing. Returns summaries only |
+| `.agents/agents/verifier.md` | read-only independent verification. Reads with intent to break |
 
-アプリが `.agents/agents/` を自動検出しない場合は、primary がこのファイルを読んでサブエージェントのプロンプトに含める。
+When the app does not auto-detect `.agents/agents/`, the primary reads these files and includes them in the subagent prompt.
 
-## 開発規約
+## Development conventions
 
-新しい領域を足すとき:
+Adding a domain:
 
-1. `works/<name>/AGENTS.md` に primary 契約を書く (既存領域をコピーして専門性を差し替える)。
-2. `works/<name>/.agents/routing.json` に業務ルーターを書く。各 rule に `playbook` と `skills` を必ず持たせる。
-3. `works/<name>/.agents/playbooks/` と `skills/` を埋める。
-4. `.agents/routing.json` に領域 rule を追加する。
+1. Write the primary contract in `works/<name>/AGENTS.md` (copy an existing domain and swap the expertise).
+2. Write the business router in `works/<name>/.agents/routing.json`. Every rule must carry `playbook` and `skills`.
+3. Fill `works/<name>/.agents/playbooks/` and `skills/`.
+4. Add the domain rule to `.agents/routing.json`.
 
-新しい業務種別を足すとき:
+Adding a business type:
 
-1. `.agents/routing.json` に rule を追加する (`id`, `title`, `keywords`, `patterns`, `playbook`, `skills`, `approval`)。
-2. 対応する playbook を書く。必要な専門知識は skill に分離する。
-3. `.agents/skills/<name>/SKILL.md` は frontmatter の `name` と `description` を必ず書く (description が Jev の criteria にも使われる)。
-4. `python3 .agents/scripts/route.py --selftest`、`decide.py --selftest`、`jev.py --selftest` を通す。
-5. 実 API の疎通は `TYPESAFE_API_KEY` を設定して `python3 .agents/scripts/jev.py --livetest` で確認する (鍵が無ければ skip、終了コード 2)。
+1. Add a rule to `.agents/routing.json` (`id`, `title`, `keywords`, `patterns`, `playbook`, `skills`, `approval`).
+2. Write the matching playbook. Split domain knowledge into skills.
+3. Every `.agents/skills/<name>/SKILL.md` must carry `name` and `description` in frontmatter (the description is also used for Jev criteria).
+4. Pass `python3 .agents/scripts/route.py --selftest`, `decide.py --selftest`, and `jev.py --selftest`.
+5. Check the live API with `TYPESAFE_API_KEY` set and `python3 .agents/scripts/jev.py --livetest` (without a key, skip; exit code 2).
 
-繰り返す判断を足すとき:
+Adding a recurring judgment:
 
-1. `.agents/decisions.json` に decision を追加する (`type`, `instructions`, `criteria`, `actions`, `policy`)。
-2. criteria は true/false の意味が具体的に分かる文で書く。例を入れる。
-3. `decide.py --selftest` にケースを追加する。
+1. Add a decision to `.agents/decisions.json` (`type`, `instructions`, `criteria`, `actions`, `policy`).
+2. Write criteria whose true/false meaning is concrete. Include examples.
+3. Add cases to `decide.py --selftest`.
 
-ルール:
+Rules:
 
-- 安全側の rule (緊急、詐欺、期限、刑事) は `"override": true` にする。スコアに関係なく一致したら勝つ。
-- `approval` は `none` / `confirm` / `escalate` のいずれか。不可逆操作や専門家領域は `escalate`。
-- 個人データを追跡ファイルに書かない。`.gitignore` の `works/*/data/` と `.agents/.cache/` を外さない。
-- Jev のキャッシュと利用ログは `.agents/.cache/jev/` に置く。追跡しない。
+- Safety-side rules (emergency, fraud, deadline, criminal) set `"override": true`. On a match they win regardless of score.
+- `approval` is one of `none` / `confirm` / `escalate`. Irreversible actions and expert domains use `escalate`.
+- Never write personal data to tracked files. Never remove `works/*/data/` and `.agents/.cache/` from `.gitignore`.
+- Keep the Jev cache and usage logs in `.agents/.cache/jev/`. Do not track them.
