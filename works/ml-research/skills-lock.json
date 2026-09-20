@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "skills": {
+    "academic-plotting": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "20-ml-paper-writing/academic-plotting/SKILL.md",
+      "computedHash": "c03f1879156fa99d7e493e83d5d0c6c78d20c20a48b37db84e5ca72342051e57"
+    },
+    "brainstorming-research-ideas": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "21-research-ideation/brainstorming-research-ideas/SKILL.md",
+      "computedHash": "52b90982250c80b21fc3512d7223d28413c0f1b726703f461d6ea8a166d22a1d"
+    },
+    "clip": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "18-multimodal/clip/SKILL.md",
+      "computedHash": "d7fabf8c0ed1505e4606c74f57964a723619c2d14eaee17efec83c4a20294fc0"
+    },
+    "creative-thinking-for-research": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "21-research-ideation/creative-thinking-for-research/SKILL.md",
+      "computedHash": "f30f52e194cc747753cd512b90045ceaef885c14d15ceab76248fd8e446ee7dd"
+    },
+    "evaluating-code-models": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "11-evaluation/bigcode-evaluation-harness/SKILL.md",
+      "computedHash": "f199c4e9e147b4ac9c00d960247a60035f5c5589fb5180af5fc63693d91c3ead"
+    },
+    "huggingface-tokenizers": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "02-tokenization/huggingface-tokenizers/SKILL.md",
+      "computedHash": "9f9a8f9922e430fa607966303479670ef06c0e0012241fec02196505278a7cf6"
+    },
+    "ml-paper-writing": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "20-ml-paper-writing/ml-paper-writing/SKILL.md",
+      "computedHash": "3d5dd06f6a0369a6576fd1098a20dc0204d92286c161da9a4e26ef360e8d6072"
+    },
+    "mlflow": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "13-mlops/mlflow/SKILL.md",
+      "computedHash": "02648fc2be5a445fe059d958873739c8123d375828ed19925599a49aef55caef"
+    },
+    "segment-anything-model": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "18-multimodal/segment-anything/SKILL.md",
+      "computedHash": "1937f78c5b4ba376c447d51880780f6cb51784f90b8600696b78ef909ccf24d6"
+    },
+    "systems-paper-writing": {
+      "source": "orchestra-research/AI-research-SKILLs",
+      "sourceType": "github",
+      "skillPath": "20-ml-paper-writing/systems-paper-writing/SKILL.md",
+      "computedHash": "fd3cf0a5ff29950ef83847ec69315e5b46563e7dd508372e8a6bca550208911f"
+    }
+  }
+}

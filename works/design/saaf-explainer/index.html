@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SaaF — an interactive report on Scene-Specific Ambiguity-Aware 3D Language Fields</title>
+<meta name="description" content="A technical report on SaaF (IROS 2026, arXiv:2607.16309): a Gaussian-Splatting 3D language field that retrieves objects from natural language and asks which one you mean when a request is ambiguous. Interactive figures, worked examples, and the paper's measured results.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23ffffff'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%231a73e8'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#abstract">Skip to content</a>
+<div class="progress" aria-hidden="true"><i id="progressBar"></i></div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="site-title" href="#top">
+      <span class="site-mark" aria-hidden="true"></span>
+      SaaF <span class="site-sub">· interactive report</span>
+    </a>
+    <nav class="header-links" aria-label="Report links">
+      <a href="#abstract">Abstract</a>
+      <a href="#notation">Notation</a>
+      <a href="#results">Results</a>
+      <a class="header-cta" href="https://arxiv.org/abs/2607.16309" target="_blank" rel="noopener">Paper&nbsp;↗</a>
+    </nav>
+  </div>
+</header>
+
+<div class="page">
+  <aside class="sidebar" aria-label="Table of contents">
+    <details class="toc-details" open>
+      <summary>Contents</summary>
+      <nav class="toc">
+        <p class="toc-title">Contents</p>
+        <ol>
+        <li><a href="#abstract">Abstract &amp; scope</a></li>
+        <li><a href="#notation">Notation</a></li>
+        <li><a href="#problem"><span class="toc-num">1</span> The problem</a></li>
+        <li><a href="#fields"><span class="toc-num">2</span> Background: 3D language fields</a></li>
+        <li><a href="#breaks"><span class="toc-num">3</span> Where the standard pipeline breaks</a></li>
+        <li><a href="#space"><span class="toc-num">4</span> Idea 1 — make features discriminative</a></li>
+        <li><a href="#ambiguity"><span class="toc-num">5</span> Idea 2 — ambiguity as a length</a></li>
+        <li><a href="#system"><span class="toc-num">6</span> The full method</a></li>
+        <li><a href="#results"><span class="toc-num">7</span> Experimental results</a></li>
+        <li><a href="#outlook"><span class="toc-num">8</span> Limitations &amp; open problems</a></li>
+        <li><a href="#references">References</a></li>
+        <li><a href="#cite">Citation &amp; disclosure</a></li>
+        </ol>
+      </nav>
+    </details>
+  </aside>
+
+  <main class="content">
+
+    <!-- HERO -->
+    <section id="top" class="hero">
+      <p class="kicker">Technical report&nbsp;&nbsp;·&nbsp;&nbsp;IROS 2026&nbsp;&nbsp;·&nbsp;&nbsp;arXiv:2607.16309</p>
+      <h1>Scene-Specific Ambiguity-Aware 3D Language Fields</h1>
+      <p class="subtitle">SaaF — towards interactive real-world object retrieval</p>
+      <p class="byline"><strong>Yuga Yano</strong><sup>1,2</sup>, <strong>Daiju Kanaoka</strong><sup>2</sup>, <strong>Hakaru Tamukoh</strong><sup>2,3</sup>, <strong>Yasutomo Kawanishi</strong><sup>2</sup></p>
+      <p class="affiliations"><sup>1</sup>&nbsp;Kyushu Institute of Technology · <sup>2</sup>&nbsp;RIKEN · <sup>3</sup>&nbsp;RIKEN Center for Neuromorphic AI Hardware</p>
+
+      <p class="lede">A service robot should be able to act on a sentence like “bring me the tart”. To do that it needs a memory of the room that is both <em>spatial</em>, so an object can be found and reached, and <em>linguistic</em>, so a phrase can be matched against it. A <strong>3D language field</strong> is exactly that memory: a reconstructed 3D scene in which every point also carries a language vector.</p>
+      <p class="lede">SaaF is a 3D language field that adds two properties to the usual design. First, its feature space is trained to keep visually similar objects apart. Second, the same space is trained so that <em>vague phrases land near the origin</em>, which turns the length of a query vector into a measurement of ambiguity. When that measurement says a request is unclear, the system asks which object you meant instead of guessing.</p>
+
+      <div class="hero-links">
+        <a class="btn btn-primary" href="https://arxiv.org/abs/2607.16309" target="_blank" rel="noopener">Read the paper</a>
+        <a class="btn" href="https://arxiv.org/pdf/2607.16309" target="_blank" rel="noopener">PDF</a>
+        <a class="btn" href="https://arxiv.org/html/2607.16309v1" target="_blank" rel="noopener">HTML</a>
+        <a class="btn" href="#cite">Cite</a>
+      </div>
+
+      <p class="reading-note"><span class="mono-label">Scope</span> About 25 minutes · 12 figures · 3 tables · 6 interactive figures · no prior background assumed beyond “a vector has a direction and a length”.</p>
+
+      <figure class="fig hero-fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 1</span>
+            <span class="fig-tag">Scene preview · bench scene</span>
+          </div>
+          <div class="canvas-wrap wide">
+            <canvas id="hero-canvas" aria-label="A rotating point-cloud reconstruction of a bench with a tart and a bunch of green grapes, as produced by Gaussian Splatting."></canvas>
+          </div>
+          <p class="fig-note">The reconstruction the report works with: a bench, a tart, and green grapes, drawn as its Gaussians. Drag to rotate; the full interaction runs in Figure 11.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 1.</span> A Gaussian-Splatting scene rendered as a point cloud. Geometry alone says nothing about language; attaching a feature vector to each point is what turns this scene into a 3D language field (§2.3). <strong>Drag the point cloud</strong> to rotate it. <em>Stylized reconstruction.</em></figcaption>
+      </figure>
+    </section>
+
+    <!-- ABSTRACT -->
+    <section id="abstract" class="chapter">
+      <h2 class="chapter-title">Abstract &amp; scope</h2>
+
+      <div class="abstract-card">
+        <p class="abstract-label">Summary</p>
+        <p>SaaF is a Gaussian-Splatting based 3D language field for interactive object retrieval in a single real-world scene. Existing methods, most directly LangSplat, embed autoencoder-compressed CLIP features into the Gaussians, but the autoencoder is trained only to reconstruct, not to separate. Two failures follow: visually similar instances blur together after compression, and ambiguous queries such as “the bottle” in a room with three bottles still receive a confident best guess.</p>
+        <p>SaaF changes the training objective rather than the architecture. A metric-learning term pulls multiple views of one object together and pushes different objects apart; a VLM-generated label set per object, spanning unique names to supercategories, teaches the space where vague concepts belong. Both changes act on one shared feature space, and the result is a space where <em>direction</em> encodes identity and <em>length</em> encodes ambiguity. Retrieval then asks a single question — is the query vector’s norm below a threshold μ — before deciding whether to retrieve or to ask the user.</p>
+        <p class="abstract-result">On the 3D-OVS dataset, SaaF reaches 96.4 overall IoU against LangSplat’s 93.5, leads every scene including the sofa scene with two similar controllers (95.7 vs 90.0), retrieves in 6.3&nbsp;ms against 9.6&nbsp;ms, and separates ambiguous from unambiguous queries using the norm alone.</p>
+      </div>
+
+      <aside class="callout callout-note">
+        <p class="callout-title">How to read this report</p>
+        <p>Figures marked <span class="tag-inline">Interactive</span> can be operated; they are teaching simulations built from the paper’s design and show the mechanism, not a reimplementation. Tables, bar charts, and every number in the prose come from the paper’s experiments. Cross-references such as <a href="#space">Idea 1 (§4)</a> are clickable.</p>
+      </aside>
+
+      <div class="table-wrap">
+        <table class="meta-table">
+          <caption>Report metadata</caption>
+          <tbody>
+            <tr><th scope="row">Paper</th><td>“SaaF: Scene-Specific Ambiguity-Aware 3D Language Fields towards Interactive Real-World Object Retrieval”</td></tr>
+            <tr><th scope="row">Datasets</th><td>3D-OVS (six scenes) and LERF (Figurines scene)</td></tr>
+            <tr><th scope="row">Baselines</th><td>Lang-SAM, LERF, 3D-OVS, LangSplat</td></tr>
+            <tr><th scope="row">Foundations used</th><td>Gaussian Splatting, CLIP, SAM2 with tracking, GPT-4o for label generation</td></tr>
+            <tr><th scope="row">Hardware</th><td>A single NVIDIA RTX A6000 Ada for tracking, training, and splatting</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- NOTATION -->
+    <section id="notation" class="chapter">
+      <h2 class="chapter-title">Notation</h2>
+      <p class="chapter-intro">The report uses a small vocabulary. Skim this table now and return to it when a term reappears; the links point at the section that explains each one.</p>
+
+      <div class="table-wrap">
+        <table class="data-table notation-table">
+          <caption>Terms and symbols used throughout</caption>
+          <thead>
+            <tr><th scope="col">Term</th><th scope="col">Meaning</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">3D language field</th><td>A reconstructed 3D scene in which every spatial element also carries a language feature vector. §<a href="#fields">2</a></td></tr>
+            <tr><th scope="row">Gaussian Splatting</th><td>A scene representation made of many explicit 3D Gaussians with position, shape, and color, rendered by projection and alpha blending. §<a href="#fields">2.1</a></td></tr>
+            <tr><th scope="row">CLIP</th><td>A model that embeds images and text into one shared vector space, so a phrase and a matching image land close together. §<a href="#fields">2.2</a></td></tr>
+            <tr><th scope="row">SAM2</th><td>A segmentation model with a memory bank that also tracks objects through video, giving each instance a consistent ID. §<a href="#system">6.1</a></td></tr>
+            <tr><th scope="row">VLM</th><td>Vision-language model. Used here to generate text labels from object images; GPT-4o in the paper. §<a href="#ambiguity">5.1</a></td></tr>
+            <tr><th scope="row">Compressed feature</th><td>A CLIP feature reduced by the autoencoder from 512 dimensions to 3, which is what each Gaussian stores. §<a href="#space">4</a></td></tr>
+            <tr><th scope="row"><span class="math-inline">μ</span> (mu)</th><td>Ambiguity threshold on the query’s compressed norm: below it the system asks for clarification. The experiments use 0.5. §<a href="#ambiguity">5.2</a></td></tr>
+            <tr><th scope="row"><span class="math-inline">τ</span> (tau)</th><td>Per-pixel cosine-similarity threshold that decides which pixels belong to the retrieved object. §<a href="#system">6.2</a></td></tr>
+            <tr><th scope="row">IoU</th><td>Intersection over Union, the standard segmentation score; higher is better. §<a href="#results">7</a></td></tr>
+            <tr><th scope="row">mIoU</th><td>Mean IoU across objects or scenes, used in the ablation study. §<a href="#results">7</a></td></tr>
+            <tr><th scope="row">3D-OVS</th><td>A benchmark of small real scenes with around six objects each, including several that share a supercategory. §<a href="#results">7</a></td></tr>
+            <tr><th scope="row">LERF · Figurines</th><td>A denser scene with many small objects on a table, used as the harder retrieval case. §<a href="#results">7</a></td></tr>
+            <tr><th scope="row">Best frame</th><td>For each tracked instance, the frame whose mask is largest; SaaF embeds features from that frame only. §<a href="#space">4.3</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============================= 1 PROBLEM ============================= -->
+    <section id="problem" class="chapter">
+      <h2 class="chapter-title"><span class="chapnum">1</span> The problem</h2>
+      <p class="chapter-intro">This chapter sets up the exact task and shows why ambiguity is a property of the scene, not just of the sentence. It ends with four requirements that a retrieval system has to satisfy, and the rest of the report checks them one by one.</p>
+
+      <h3>1.1 Ambiguity lives in the scene</h3>
+      <p><em>“Bring me the bottle”</em> is only ambiguous if the room actually holds several bottles. The same words are perfectly clear in a room with one. A robot therefore cannot judge a request from the sentence alone; it has to compare the words against the objects that exist in this particular reconstructed room. That makes ambiguity a <em>scene-specific, measurable</em> property, and it is the property this paper sets out to measure.</p>
+      <p>Interactive planning research has tackled the conversational half of this problem. KnowNo, a system built on PaLM-E / SayCan, detects when an instruction is unclear and proactively asks the user for help. But it assumes the robot already knows what and where the objects are. Finding the object from open-vocabulary language, inside a real reconstructed scene, is a separate capability, and it is the one SaaF provides.</p>
+
+      <h3>1.2 Two ways language fails a robot</h3>
+      <p>When a request meets a scene, two different things can go wrong, and they are independent:</p>
+      <ol class="num-list">
+        <li><strong>The sentence is vague.</strong> “Hand me the bottle” has several valid targets in this room. A system that always returns its single best match will answer, confidently, with one of them. The user asked for help and received a guess.</li>
+        <li><strong>The robot’s memory is too blurry to distinguish instances.</strong> Even a precise phrase like “the left controller” fails if the stored features of two look-alike controllers have converged. This failure belongs to the representation, not to the wording.</li>
+      </ol>
+
+      <h3>1.3 What the memory must provide</h3>
+      <p>Working backwards from the task gives four requirements. They return in §<a href="#breaks">3.3</a> as the checklist for SaaF’s design.</p>
+      <ul class="plain-list">
+        <li><strong>Object-level 3D structure</strong> — a found object must be pointable, graspable, or navigable.</li>
+        <li><strong>Language attached to that structure</strong> — “tart” or “green grape” must match without a fixed class list. This is what a 3D language field supplies.</li>
+        <li><strong>Separability between similar instances</strong> — two controllers on a sofa are different objects, and the representation must say so.</li>
+        <li><strong>An honest uncertainty signal</strong> — a vague request should produce a question, not a confident wrong answer.</li>
+      </ul>
+
+      <figure class="fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 2</span>
+            <span class="fig-tag">Interaction loop</span>
+          </div>
+          <div class="loop" id="loopDiagram">
+            <div class="loop-step" data-step="0"><span class="loop-num">1</span><p><strong>User:</strong> “Bring me the tart.”</p></div>
+            <div class="loop-step" data-step="1"><span class="loop-num">2</span><p><strong>Robot:</strong> searches the reconstructed scene for the phrase.</p></div>
+            <div class="loop-step" data-step="2"><span class="loop-num">3</span><p><strong>Check:</strong> the query maps near the origin, so several objects could qualify.</p></div>
+            <div class="loop-step" data-step="3"><span class="loop-num">4</span><p><strong>Robot asks:</strong> “Do you mean the tart or the green grapes?”</p></div>
+            <div class="loop-step" data-step="4"><span class="loop-num">5</span><p><strong>Answer:</strong> the query becomes specific and the matching region is returned.</p></div>
+          </div>
+        </div>
+        <figcaption><span class="fig-label">Figure 2.</span> The interaction the paper targets. Conventional 3D language fields stop at step&nbsp;2 and always return a best guess. SaaF inserts steps&nbsp;3 and&nbsp;4 — a measurement of ambiguity and, if needed, a question — before committing to an answer. The steps highlight in order when this figure is in view.</figcaption>
+      </figure>
+
+      <aside class="callout callout-key">
+        <p class="callout-title">Key idea</p>
+        <p>Ambiguity is not a property of the sentence. It is a relation between the sentence and the objects that exist in this room, so it can be measured — but only inside a representation that knows the room.</p>
+      </aside>
+    </section>
+
+    <!-- ============================= 2 FIELDS ============================= -->
+    <section id="fields" class="chapter">
+      <h2 class="chapter-title"><span class="chapnum">2</span> Background: 3D language fields</h2>
+      <p class="chapter-intro">Three well-known ingredients combine to make a 3D language field. This chapter reviews each one in the form SaaF uses it, then shows, in an interactive figure, what the field actually stores.</p>
+
+      <h3>2.1 Gaussian Splatting: an explicit 3D scene</h3>
+      <p><strong>What it is.</strong> A scene is stored as millions of small 3D Gaussians. Each has a position, a shape (an oriented ellipsoid), and a color. Rendering projects them onto the image plane and alpha-blends them, which is fast enough for real-time use.</p>
+      <p><strong>Why it matters here.</strong> The representation is <em>explicit</em>: individual Gaussians can be edited, grouped, or annotated, and a group of Gaussians can be treated as an object. That is what makes it possible to attach language to geometry. Earlier NeRF-based representations model a scene implicitly as a continuous field; they render beautifully but are awkward to decompose into objects and slow to query.</p>
+
+      <h3>2.2 CLIP: one space for text and images</h3>
+      <p><strong>What it is.</strong> CLIP trains an image encoder and a text encoder so that matching pairs land close together in one shared vector space. A photo of a tart and the phrase “a photo of a tart” end up as nearby vectors.</p>
+      <p><strong>Why it matters here.</strong> Similarity in that space is a usable proxy for meaning, so a text query can act as a search key over visual features. This is what makes open-vocabulary retrieval possible: no fixed list of classes, just vectors compared with cosine similarity.</p>
+
+      <h3>2.3 From masks to a language field</h3>
+      <p>LangSplat, the baseline SaaF builds on and improves, turns the two ingredients above into a working retrieval system in four steps:</p>
+      <ol class="num-list">
+        <li><strong>Segment.</strong> SAM extracts an object mask in every input image.</li>
+        <li><strong>Embed.</strong> A CLIP feature is computed for each masked region.</li>
+        <li><strong>Compress.</strong> A small autoencoder shrinks 512-dimensional CLIP features to 3 dimensions, which is cheap to store and to render.</li>
+        <li><strong>Attach.</strong> Each Gaussian receives the compressed feature of the object it belongs to.</li>
+      </ol>
+      <p>At query time the scene is rendered once and every pixel carries a feature; the pixels whose feature is close enough to the query vector form the answer. Storage and comparison are cheap because the features live in 3 dimensions. That same compression is the origin of the first failure mode in §<a href="#breaks">3.1</a>.</p>
+
+      <figure class="fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 3 · Interactive</span>
+            <span class="fig-tag">Tabletop scene · simulation</span>
+          </div>
+          <div class="fig-toolbar">
+            <div class="seg" id="fieldModes" role="group" aria-label="Render mode">
+              <button type="button" data-mode="rgb" aria-pressed="true">RGB render</button>
+              <button type="button" data-mode="features" aria-pressed="false">Language features</button>
+              <button type="button" data-mode="sim" aria-pressed="false">Query similarity</button>
+            </div>
+            <div class="chips" id="fieldQueries" role="group" aria-label="Query">
+              <button type="button" class="chip" data-q="bottle" aria-pressed="true">“bottle”</button>
+              <button type="button" class="chip" data-q="coke" aria-pressed="false">“coke”</button>
+              <button type="button" class="chip" data-q="juice" aria-pressed="false">“orange juice”</button>
+            </div>
+          </div>
+          <div class="canvas-wrap wide">
+            <canvas id="field-canvas" aria-label="A tabletop scene rendered as a point cloud. Toggle between the photographic render, the per-point language features, and a query similarity heat map."></canvas>
+          </div>
+          <p class="fig-note" id="fieldNote">RGB render: what the reconstruction looks like as a point cloud. Every point also carries a language vector, invisible in this view.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 3.</span> The same scene under three views of the same data. <strong>RGB render</strong> shows geometry only. <strong>Language features</strong> shows what the field stores per point; notice that the two generic bottles receive almost the same color, which is the seed of failure A. <strong>Query similarity</strong> scores every point against the selected phrase, so you can see how many objects compete for “bottle”. <em>Teaching simulation.</em></figcaption>
+      </figure>
+
+      <aside class="callout callout-def">
+        <p class="callout-title">Definition</p>
+        <p><strong>3D language field.</strong> A reconstructed 3D scene in which every spatial element carries a language feature vector, so that natural-language phrases can be located in the scene by comparing vectors. “Field” refers to the vectors existing everywhere in the reconstruction, not only at labelled objects.</p>
+      </aside>
+    </section>
+
+    <!-- ============================= 3 BREAKS ============================= -->
+    <section id="breaks" class="chapter">
+      <h2 class="chapter-title"><span class="chapnum">3</span> Where the standard pipeline breaks</h2>
+      <p class="chapter-intro">Both failures start from one design decision — an autoencoder trained only to reconstruct — and one design assumption — that every query deserves an answer. This chapter shows each failure in isolation, then states the requirements that follow.</p>
+
+      <h3>3.1 Failure A: compression erases small differences</h3>
+      <p>The autoencoder is optimized to reconstruct CLIP features, not to preserve the identity of objects. Any difference that costs little reconstruction error is free to vanish, and the differences between two visually similar instances are precisely the small ones. In the compressed space the instance clusters drift together; in a sofa scene with two look-alike controllers, LangSplat’s features for the two objects become close enough to cause misrecognition.</p>
+      <p>Drag the slider below to reproduce the mechanism in miniature: two well-separated clusters at 512 dimensions become one smudge at the 3 dimensions the field stores.</p>
+
+      <figure class="fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 4 · Interactive</span>
+            <span class="fig-tag">Illustration</span>
+          </div>
+          <div class="fig-toolbar">
+            <div class="mini-controls">
+              <label for="compressRange">Compressed dimensions</label>
+              <input id="compressRange" type="range" min="0" max="100" value="0" aria-valuetext="512 dimensions">
+              <output id="compressOut" class="mono-val">512</output>
+            </div>
+          </div>
+          <div class="canvas-wrap flat">
+            <canvas id="compress-canvas" aria-label="Two feature clusters merge as the compressed dimension count drops from 512 to 3."></canvas>
+          </div>
+          <p class="fig-note">Two instances, two clouds of features. At 512 dimensions a classifier separates them easily; at the 3 dimensions the field stores, the clouds overlap.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 4.</span> A simplified illustration of what the paper measures on a real scene: reconstruction-driven compression crowds out instance differences. The effect is visible in the results — LangSplat scores 90.0 on the sofa scene with two similar controllers, against SaaF’s 95.7 (Table 2). <em>Illustration, not a reimplementation of the autoencoder.</em></figcaption>
+      </figure>
+
+      <h3>3.2 Failure B: every query gets an answer</h3>
+      <p>Ask for “a bottle” in a scene with several bottles and a similarity-max system must choose. The decision falls to small feature differences, and those differences can flip between viewpoints or between near-identical candidates. The paper describes the outcome as unstable retrieval: sometimes the wrong object, sometimes several objects at once. The system never reports that its top candidates are effectively tied, because that information is not part of the output it produces.</p>
+
+      <figure class="fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 5</span>
+            <span class="fig-tag">Illustration</span>
+          </div>
+          <div class="unstable">
+            <p class="unstable-query">Query: <span>“bring me a bottle”</span></p>
+            <ul class="unstable-list" id="unstableList">
+              <li><span class="u-name">Round bottle</span><span class="u-meter"><i></i></span><span class="u-score mono-val">0.31</span></li>
+              <li><span class="u-name">Shaped bottle</span><span class="u-meter"><i></i></span><span class="u-score mono-val">0.30</span></li>
+              <li><span class="u-name">Can</span><span class="u-meter"><i></i></span><span class="u-score mono-val">0.24</span></li>
+            </ul>
+            <p class="unstable-flag" id="unstableFlag">Best guess: <span>Round bottle</span></p>
+          </div>
+          <p class="fig-note">A gap of 0.01 decides the answer, and small perturbations flip it. The top two candidates are tied in every practical sense; the interface has no way to say so.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 5.</span> Why “best guess always” fails on vague requests. The scores are cosine similarities between the query feature and the object features, illustrated here to show the instability the paper describes.</figcaption>
+      </figure>
+
+      <h3>3.3 The requirements, restated</h3>
+      <p>Putting the two failures next to the four requirements from §<a href="#problem">1.3</a>, a fix has to satisfy:</p>
+      <ul class="plain-list">
+        <li><strong>R1 — Discriminability.</strong> Similar instances stay separable <em>after</em> compression, not only before it.</li>
+        <li><strong>R2 — Ambiguity awareness.</strong> The space itself makes visible when a phrase covers several objects, because no external classifier can know which phrases are vague in this scene.</li>
+        <li><strong>R3 — Semantic fidelity.</strong> Whatever the space does to separate instances must not destroy the CLIP meaning that the language side depends on.</li>
+        <li><strong>R4 — Low query cost.</strong> Whatever the fix adds must not make retrieval slower, or the robot’s responsiveness pays for it.</li>
+      </ul>
+
+      <aside class="callout callout-key">
+        <p class="callout-title">Key idea</p>
+        <p>Both failures are failures of the <em>feature space</em>, not of the architecture around it. Adding modules would not help; changing what the space is trained to do would. SaaF’s contribution is exactly that change, in two terms: one for R1 and R3, one for R2.</p>
+      </aside>
+    </section>
+
+    <!-- ============================= 4 SPACE ============================= -->
+    <section id="space" class="chapter">
+      <h2 class="chapter-title"><span class="chapnum">4</span> Idea 1 — make features discriminative</h2>
+      <p class="chapter-intro">Keep the autoencoder. Add one term to its loss so that it is rewarded for separating instances, not only for reconstructing them. This chapter states the loss, explains what each term does, and lets you switch the terms off one at a time.</p>
+
+      <h3>4.1 The loss</h3>
+      <p>SaaF keeps CLIP and the compression architecture, and trains the autoencoder with:</p>
+      <p class="equation">ℒ = ℒ<sub>lmc</sub> + λ · ℒ<sub>reconst</sub>, &nbsp;&nbsp; where &nbsp;&nbsp; ℒ<sub>lmc</sub> = ℒ<sub>pos</sub> + ℒ<sub>neg</sub></p>
+      <p>Each term has a plain-language job:</p>
+      <ul class="def-list">
+        <li>
+          <p class="def-term"><span class="math-inline">ℒ<sub>pos</sub> = 1 − a</span> — <em>pull views of the same object together.</em></p>
+          <p>For a tracked instance with features from several frames, <span class="math-inline">a</span> is the cosine similarity between two of those features. Minimizing <span class="math-inline">1 − a</span> drives the similarity toward 1, so all views of one object collapse to a single direction.</p>
+        </li>
+        <li>
+          <p class="def-term"><span class="math-inline">ℒ<sub>neg</sub> = max(M − b, 0)</span> — <em>push different objects apart.</em></p>
+          <p>For two features from different instances, <span class="math-inline">b</span> is their cosine similarity. The term is zero once <span class="math-inline">b</span> falls below a margin <span class="math-inline">M</span>, and otherwise pushes the similarity down. Pairs are sampled with a margin miner, so the loss spends effort on instances that are currently too close.</p>
+        </li>
+        <li>
+          <p class="def-term"><span class="math-inline">ℒ<sub>reconst</sub></span> — <em>keep the meaning.</em></p>
+          <p>The decoder must still reproduce the original CLIP feature from the compressed one; the loss is the sum of the cosine and L2 distances between the original and reconstructed vectors. This is what stops the encoder from inventing a separated space that no longer tracks language — requirement R3.</p>
+        </li>
+        <li>
+          <p class="def-term"><span class="math-inline">λ</span> — <em>the balance.</em></p>
+          <p>One scalar trades semantic fidelity against separation. One knob, two forces.</p>
+        </li>
+      </ul>
+
+      <h3>4.2 What the loss does to the geometry</h3>
+      <p>The two metric terms work on directions, and the reconstruction term works on distances. Consider what that means for a phrase like <em>“bottle”</em> that genuinely refers to several instances:</p>
+      <ol class="num-list">
+        <li>Pull-together aligns the views of each instance into a single direction.</li>
+        <li>Push-apart fans the instances out into different directions, so their features are well separated.</li>
+        <li>A phrase that spans instances cannot satisfy push-apart against all of them and must still be reconstructable. The compromise that satisfies both is to sit <em>near the origin</em>: short enough to stay moderately similar to every instance it covers, long enough to retain its meaning.</li>
+      </ol>
+      <p>Chapter&nbsp;5 shows that this side effect of the metric loss is what makes ambiguity measurable. First, the figure below shows the effect of each term directly.</p>
+
+      <figure class="fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 6 · Interactive</span>
+            <span class="fig-tag">Feature space · simulation</span>
+          </div>
+          <div class="fig-toolbar">
+            <div class="seg" id="lossToggles" role="group" aria-label="Loss terms">
+              <button type="button" data-loss="pos" aria-pressed="true">ℒ pos · same-instance pull</button>
+              <button type="button" data-loss="neg" aria-pressed="true">ℒ neg · margin push</button>
+              <button type="button" data-loss="reconst" aria-pressed="true">ℒ reconst · keep meaning</button>
+            </div>
+          </div>
+          <div class="canvas-wrap square">
+            <canvas id="space-loss-canvas" aria-label="Feature dots from four object instances in a 2D space. Toggling loss terms pulls same-instance dots together, pushes different instances apart, or inflates the space when reconstruction is removed."></canvas>
+          </div>
+          <p class="fig-note" id="lossNote">All terms on: each instance holds one direction, different instances stay apart, and the space keeps track of CLIP meaning.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 6.</span> A schematic 2D view of the learned space; each dot is a feature from one frame, colored by its instance, and the rings mark vector length 0.5, 1.0, and 1.5. <strong>Try it:</strong> switch off ℒ pos and one object’s views smear into a cloud; switch off ℒ neg and the instances drift into one another; switch off ℒ reconst and features inflate outward with no anchor to language. <em>Teaching simulation.</em></figcaption>
+      </figure>
+
+      <h3>4.3 A stability detail: embed only the best frame</h3>
+      <p>There is a second, less visible change. LangSplat embeds features from every frame, which lets occlusion and viewpoint variation leak into the field: the same Gaussian may receive slightly different features depending on which frame contributed it. SaaF keeps the tracked masks, selects for each instance the frame with the largest mask area — the <strong>best frame</strong> — and embeds features from that frame only.</p>
+      <p>This is not a detail to skip: in the ablation it adds 9.0 mIoU on its own, before any text labels exist (Table 3, §<a href="#results">7</a>).</p>
+
+      <aside class="callout callout-try">
+        <p class="callout-title">Try it</p>
+        <p>In Figure&nbsp;6, turn off exactly one term, look at the space, turn it back on, and repeat. The three failure pictures are distinguishable at a glance: <em>smear</em> (missing ℒ pos), <em>merge</em> (missing ℒ neg), <em>inflation</em> (missing ℒ reconst). The same three behaviours reappear in the ablation results.</p>
+      </aside>
+    </section>
+
+    <!-- ============================= 5 AMBIGUITY ============================= -->
+    <section id="ambiguity" class="chapter">
+      <h2 class="chapter-title"><span class="chapnum">5</span> Idea 2 — ambiguity as a length</h2>
+      <p class="chapter-intro">The second change is supervision. Every tracked object receives about a hundred text labels, from unique names to supercategories, and the autoencoder is trained on those labels too. This chapter explains where the labels come from, why that training makes vagueness measurable, and what the measurements look like on real scenes.</p>
+
+      <h3>5.1 Labels from tracked masks</h3>
+      <p>Text is needed for two reasons: without it the space learns where <em>images</em> live but never links to the language side, and the specific choice of labels is what teaches the space which phrases are vague in this scene. The labels are generated automatically, in four steps:</p>
+      <ol class="num-list">
+        <li><strong>Track.</strong> SAM2 follows each object through the capture and keeps a consistent instance ID. New objects that appear later are detected by low overlap with existing tracks and added to the set.</li>
+        <li><strong>Collect frames.</strong> The frames for an instance are ranked by mask area, and several of the largest are sampled <em>at random</em>. Randomness avoids near-duplicate frames and stops the labels from overfitting to one view.</li>
+        <li><strong>Compose.</strong> The sampled masks are combined into a single collage per object, with the background blacked out, so the model sees several views of one instance side by side.</li>
+        <li><strong>Ask a VLM.</strong> The collage goes to a vision-language model (GPT-4o in the paper) with a system prompt that asks for shape, color, brand, and proper names, plus a second instruction to include <em>supercategory</em> labels. The result is roughly 100 labels per object, deliberately spanning specificity.</li>
+      </ol>
+
+      <figure class="fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 7 · Interactive</span>
+            <span class="fig-tag">Label generation</span>
+          </div>
+          <div class="fig-toolbar">
+            <span class="fig-toolbar-label">Example stream for one instance in the bottle scene</span>
+            <button type="button" class="chip" id="genLabels">Generate labels</button>
+          </div>
+          <div class="label-stream" id="labelStream" aria-live="polite"></div>
+          <p class="fig-note">Labels appear in an order a VLM might return them: unique names first, generic terms later. Green marks instance-specific labels, amber marks supercategory-level ones.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 7.</span> The labelling step, replayed. The real prompt asks for about 100 labels per object, which is what makes a usable training signal for the ambiguity property. Press <em>Generate labels</em> to run it again.</figcaption>
+      </figure>
+
+      <h3>5.2 Why the norm encodes ambiguity</h3>
+      <p>Training on these labels produces a space with an unusual property: the <em>length</em> of a feature vector reports how vague the concept is. Three forces combine to produce it, and Figure&nbsp;6 lets you remove them one by one:</p>
+      <ol class="num-list">
+        <li><strong>Unique concepts get pushed outward.</strong> A name like “Coke” fits exactly one instance. Push-apart drives its direction away from every other instance, and length is what keeps the directions from collapsing onto each other.</li>
+        <li><strong>Ambiguous concepts cannot pick a side.</strong> “Bottle” refers to several instances at once. A long vector far from one instance would be close to another and would fight the margin; the configuration that satisfies the loss for all instances is a <em>short</em> vector near the origin, moderately similar to everything it covers.</li>
+        <li><strong>Reconstruction anchors the position.</strong> The decoder still has to recover the original CLIP feature from the short vector. The origin is not a graveyard; it is a dense summarization point for concepts that are true of many objects.</li>
+      </ol>
+      <p>The consequence is a decision rule that costs nothing extra, where <span class="math-inline">q<sub>comp</sub></span> is the compressed query feature:</p>
+      <p class="equation">‖q<sub>comp</sub>‖<sub>2</sub> &lt; μ &nbsp;⟹&nbsp; ambiguous query → ask the user, &nbsp;&nbsp; otherwise → retrieve</p>
+
+      <figure class="fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 8 · Interactive</span>
+            <span class="fig-tag">Feature space · simulation</span>
+          </div>
+          <div class="fig-toolbar column">
+            <div class="chips" id="normQueries" role="group" aria-label="Query">
+              <button type="button" class="chip" data-q="coke" aria-pressed="false">“coke”</button>
+              <button type="button" class="chip" data-q="juice" aria-pressed="false">“orange juice”</button>
+              <button type="button" class="chip" data-q="round" aria-pressed="false">“round bottle”</button>
+              <button type="button" class="chip" data-q="bottle" aria-pressed="true">“bottle”</button>
+            </div>
+            <div class="mini-controls">
+              <label for="muRange">Threshold μ</label>
+              <input id="muRange" type="range" min="15" max="120" value="50" aria-valuetext="0.50">
+              <output id="muOut" class="mono-val">0.50</output>
+            </div>
+          </div>
+          <div class="canvas-wrap square">
+            <canvas id="space-norm-canvas" aria-label="Feature space with unique concepts far from the origin and ambiguous concepts near it. A dashed threshold circle marks the ambiguity boundary and a slider moves it."></canvas>
+          </div>
+          <p class="fig-note" id="normNote">Query “bottle”: vector length 0.17, inside the threshold circle. The system classifies it as ambiguous and would ask for clarification instead of retrieving.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 8.</span> The same space as Figure&nbsp;6, now including label features such as <em>bottle</em> and <em>drink</em> (amber). Select a query to draw its vector from the origin and read its length; the dashed circle is the threshold μ. <strong>Try it:</strong> drag μ upward and watch the verdict for “round bottle” flip from <em>retrieve</em> to <em>ask</em> — the boundary is a policy choice, not a truth. <em>Teaching simulation.</em></figcaption>
+      </figure>
+
+      <h3>5.3 The measurements on real scenes</h3>
+      <p>Figure&nbsp;9 shows the norms the paper actually measured for two scenes and the queries used in the experiments. The pattern to read: generic terms land well inside the threshold, specific terms climb, and the ordering tracks how many objects in <em>that scene</em> the phrase can refer to.</p>
+
+      <figure class="fig">
+        <div class="fig-frame chart-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 9</span>
+            <span class="fig-tag">Measured · from the paper</span>
+          </div>
+          <div class="norm-chart" id="normChart" aria-label="Bar chart of measured vector norms for queries in two scenes. Dashed line marks the 0.5 threshold.">
+            <div class="norm-axis"><span class="axis-scale">
+              <i style="left:0%">0</i>
+              <i style="left:29.4%">0.5 μ</i>
+              <i style="left:58.8%">1.0</i>
+              <i style="left:88.2%">1.5</i>
+            </span></div>
+          </div>
+          <p class="fig-note">Bar length is the measured L2 norm of the compressed query feature. The vertical line marks μ = 0.5, the threshold used in the experiments.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 9.</span> The paper’s ambiguity measurements. Bench scene: “food” covers both the tart and the green grapes, so it scores 0.10 and would trigger a question; “fruit” matches only the grapes at 0.53; “tart” 0.74; “green grape” 1.59. Figurines scene: “animal” 0.08; “apple” 0.32, ambiguous because two apples sit on the table; “red apple” 0.60 and “green apple” 0.68 become specific; “kitchen tool” 0.44 because exactly one tool exists in the scene; “spatula” 0.71.</figcaption>
+      </figure>
+
+      <h3>5.4 Two honest notes about the measurements</h3>
+      <p><strong>The threshold is scene-relative.</strong> “Fruit” is a specific query in the bench scene, where only grapes qualify (0.53), while “apple” is ambiguous in the figurines scene, which holds two apples (0.32). Ambiguity is measured against the objects that actually exist in the room. That is the design goal, and it is also why a threshold cannot be transplanted between scenes without care.</p>
+      <p><strong>The threshold is chosen by hand.</strong> The paper is explicit that μ must currently be set manually per environment, and that automatic calibration is future work. §<a href="#outlook">8</a> lists this among the open problems.</p>
+
+      <aside class="callout callout-faq">
+        <p class="callout-title">Common question</p>
+        <p><strong>Why not simply threshold the cosine similarity of the query, instead of training for a norm?</strong> A similarity threshold can say “this match is weak”, but not “this request has several good matches”. Those are different situations: a single unfamiliar object also scores modestly. The norm in this space is trained to distinguish them, because it is a property of the phrase <em>relative to the set of instances</em>, not of any single comparison.</p>
+      </aside>
+    </section>
+
+    <!-- ============================= 6 SYSTEM ============================= -->
+    <section id="system" class="chapter">
+      <h2 class="chapter-title"><span class="chapnum">6</span> The full method</h2>
+      <p class="chapter-intro">The method has an offline half that builds the field for one scene, and an online half that answers queries and decides when answering needs help. This chapter walks through both, then follows a single request end to end with the paper’s measured numbers.</p>
+
+      <h3>6.1 Building the field (once per scene)</h3>
+
+      <figure class="fig">
+        <div class="fig-frame diagram-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 10</span>
+            <span class="fig-tag">Architecture · adapted from Fig. 2 of the paper</span>
+          </div>
+          <div class="diagram-scroll">
+            <svg class="diagram" viewBox="-10 -12 1200 584" role="img" aria-label="Architecture diagram. Offline: multi-view capture into SAM2 tracking, into VLM label generation, into a metric-learning autoencoder, into a Gaussian language field. Online: text query into encoder, then a norm check against threshold mu, which either asks the user for clarification or runs cosine similarity per pixel against threshold tau to output an object mask.">
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" class="arrow-head"/>
+                </marker>
+              </defs>
+
+              <text x="0" y="24" class="dg-phase">Offline · once per scene</text>
+
+              <g class="node">
+                <rect x="0" y="46" width="176" height="112" rx="6"/>
+                <text x="16" y="76" class="dg-title">Multi-view capture</text>
+                <text x="16" y="98" class="dg-sub">posed RGB frames</text>
+                <text x="16" y="114" class="dg-sub">of one room</text>
+              </g>
+              <path class="flow" d="M176,102 H228" marker-end="url(#arrow)"/>
+              <g class="node">
+                <rect x="230" y="46" width="196" height="112" rx="6"/>
+                <text x="246" y="76" class="dg-title">SAM2 tracking</text>
+                <text x="246" y="98" class="dg-sub">object masks + instance IDs</text>
+                <text x="246" y="114" class="dg-sub">largest-mask frame kept</text>
+              </g>
+              <path class="flow" d="M426,102 H478" marker-end="url(#arrow)"/>
+              <g class="node">
+                <rect x="480" y="46" width="196" height="112" rx="6"/>
+                <text x="496" y="76" class="dg-title">VLM labels</text>
+                <text x="496" y="98" class="dg-sub">≈100 per instance, from</text>
+                <text x="496" y="114" class="dg-sub">unique name to supercategory</text>
+              </g>
+              <path class="flow" d="M676,102 H728" marker-end="url(#arrow)"/>
+              <g class="node accent">
+                <rect x="730" y="46" width="216" height="112" rx="6"/>
+                <text x="746" y="76" class="dg-title">Metric-learning autoencoder</text>
+                <text x="746" y="98" class="dg-sub">512 → 3 dims, trained on image</text>
+                <text x="746" y="114" class="dg-sub">and text features</text>
+              </g>
+              <path class="flow" d="M946,102 H998" marker-end="url(#arrow)"/>
+              <g class="node">
+                <rect x="1000" y="46" width="180" height="112" rx="6"/>
+                <text x="1016" y="76" class="dg-title">Gaussian field</text>
+                <text x="1016" y="98" class="dg-sub">one 3-dim language</text>
+                <text x="1016" y="114" class="dg-sub">vector per Gaussian</text>
+              </g>
+
+              <path class="dg-divider" d="M0,208 H1180"/>
+
+              <text x="0" y="248" class="dg-phase">Online · per request</text>
+
+              <g class="node">
+                <rect x="0" y="270" width="176" height="112" rx="6"/>
+                <text x="16" y="300" class="dg-title">Text query</text>
+                <text x="16" y="322" class="dg-sub">“bring me the tart”</text>
+              </g>
+              <path class="flow" d="M176,326 H228" marker-end="url(#arrow)"/>
+              <g class="node">
+                <rect x="230" y="270" width="196" height="112" rx="6"/>
+                <text x="246" y="300" class="dg-title">Encode</text>
+                <text x="246" y="322" class="dg-sub">q → q_comp</text>
+              </g>
+              <path class="flow" d="M426,326 H478" marker-end="url(#arrow)"/>
+
+              <g class="node decision">
+                <polygon points="576,262 676,326 576,390 476,326"/>
+                <text x="576" y="320" class="dg-title mid">‖q_comp‖₂ &lt; μ ?</text>
+                <text x="576" y="340" class="dg-sub mid">ambiguity check</text>
+              </g>
+
+              <path class="flow" d="M676,326 H728" marker-end="url(#arrow)"/>
+              <g class="node">
+                <rect x="730" y="270" width="216" height="112" rx="6"/>
+                <text x="746" y="300" class="dg-title">Cosine similarity per pixel</text>
+                <text x="746" y="322" class="dg-sub">score &gt; τ → include pixel</text>
+              </g>
+              <path class="flow" d="M946,326 H998" marker-end="url(#arrow)"/>
+              <g class="node accent">
+                <rect x="1000" y="270" width="180" height="112" rx="6"/>
+                <text x="1016" y="300" class="dg-title">Object mask</text>
+                <text x="1016" y="322" class="dg-sub">region for grasp / nav</text>
+              </g>
+
+              <path class="flow loopback" d="M576,390 V462 H88 V382" marker-end="url(#arrow)"/>
+              <text x="600" y="424" class="dg-branch">yes · ask which one</text>
+              <text x="688" y="320" class="dg-branch ok">no</text>
+
+              <g class="node ask">
+                <rect x="30" y="452" width="180" height="76" rx="6"/>
+                <text x="46" y="482" class="dg-title">Clarify with user</text>
+                <text x="46" y="504" class="dg-sub">wait for a specific phrase</text>
+              </g>
+            </svg>
+          </div>
+          <p class="fig-note">The decision in the middle costs one L2 norm. Everything above the divider is the offline build; everything below is a per-request pass over rendered pixels.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 10.</span> The complete method. The two training signals — tracked masks and generated labels — enter the same autoencoder, which is why one small module produces both instance separation and ambiguity awareness.</figcaption>
+      </figure>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption>Table 1. Training details, as reported in the paper</caption>
+          <thead>
+            <tr><th scope="col">Component</th><th scope="col">Setting</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Feature extractor</th><td>CLIP; 512-dimensional features computed from SAM2 masks</td></tr>
+            <tr><th scope="row">Encoder</th><td>512 → 256 → 128 → 64 → 32 → 3, batch norm and ReLU after each step</td></tr>
+            <tr><th scope="row">Decoder</th><td>3 → 16 → 32 → 64 → 128 → 256 → 256 → 512</td></tr>
+            <tr><th scope="row">Optimizer</th><td>Adam, learning rate 0.007, batch size 1024</td></tr>
+            <tr><th scope="row">Schedule</th><td>500 epochs; the checkpoint with the lowest loss is kept</td></tr>
+            <tr><th scope="row">Pair sampling</th><td>PairMarginMiner for the metric-learning pairs</td></tr>
+            <tr><th scope="row">Labels</th><td>≈100 per instance, generated by GPT-4o from mask collages</td></tr>
+            <tr><th scope="row">Embedding</th><td>Compressed features from the best frame only, per tracked instance</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>6.2 Answering a request (per query)</h3>
+      <p>The online half is four steps: two single arithmetic operations, one comparison, and possibly one question to the user.</p>
+      <ol class="num-list">
+        <li><strong>Encode.</strong> The query text is embedded by CLIP and compressed by the trained encoder into <span class="math-inline">q<sub>comp</sub></span>.</li>
+        <li><strong>Measure.</strong> Compute <span class="math-inline">‖q<sub>comp</sub>‖<sub>2</sub></span>. If it is below μ, the request is ambiguous in this scene: say so and ask for a more specific phrase.</li>
+        <li><strong>Compare.</strong> Otherwise, render the field once and compute the cosine similarity between <span class="math-inline">q<sub>comp</sub></span> and the compressed feature of every rendered pixel.</li>
+        <li><strong>Return.</strong> The answer is the set of pixels whose similarity exceeds τ. SaaF compares compressed features directly, so no per-pixel decoding step is needed — this is where the speed advantage over LangSplat comes from (R4).</li>
+      </ol>
+
+      <div class="worked">
+        <p class="worked-title">Worked example · the bench scene</p>
+        <ol class="worked-steps">
+          <li><span class="mono-label">Step 1</span><p>User: <em>“Bring me the food.”</em> The phrase is encoded and compressed.</p></li>
+          <li><span class="mono-label">Step 2</span><p>The measured norm is <strong>0.10</strong>, below μ = 0.5. Both the tart and the green grapes qualify, so the system replies: <em>“Do you mean the tart or the green grapes?”</em></p></li>
+          <li><span class="mono-label">Step 3</span><p>User: <em>“The green grapes.”</em> The new query encodes to norm <strong>1.59</strong> — specific.</p></li>
+          <li><span class="mono-label">Step 4</span><p>Cosine similarity is computed per pixel; every pixel above τ is returned as the object region. The paper reports 6.3&nbsp;ms average retrieval time per query on this benchmark.</p></li>
+        </ol>
+      </div>
+
+      <h3>6.3 Try the loop</h3>
+      <p>The figure below runs the same loop in a simulated interface, using the norms the paper measured for this scene. Preset phrases and free text both work, and the clarifications the system offers lead to the same re-query you would perform as a user.</p>
+
+      <figure class="fig">
+        <div class="fig-frame">
+          <div class="fig-head">
+            <span class="mono-label">Figure 11 · Interactive</span>
+            <span class="fig-tag">Bench scene · measured norms, simulated UI</span>
+          </div>
+          <div class="canvas-wrap wide">
+            <canvas id="retrieve-canvas" aria-label="Point-cloud bench scene with a tart and a bunch of green grapes. The matched object highlights after a query is resolved."></canvas>
+          </div>
+          <div class="retrieve-ui">
+            <div class="chips" id="retrieveQueries" role="group" aria-label="Preset queries">
+              <button type="button" class="chip" data-q="food" aria-pressed="false">“food”</button>
+              <button type="button" class="chip" data-q="fruit" aria-pressed="false">“fruit”</button>
+              <button type="button" class="chip" data-q="tart" aria-pressed="false">“tart”</button>
+              <button type="button" class="chip" data-q="grape" aria-pressed="false">“green grape”</button>
+            </div>
+            <form class="query-form" id="retrieveForm">
+              <label class="sr-only" for="retrieveInput">Type a query</label>
+              <input id="retrieveInput" type="text" placeholder="or type a request, e.g. “bring me the tart”" autocomplete="off" spellcheck="false">
+              <button type="submit">Search</button>
+            </form>
+            <div class="meter">
+              <div class="meter-track"><i id="retrieveNorm"></i><span class="meter-mu" id="retrieveMuMark">μ</span></div>
+              <div class="meter-labels"><span class="mono-label">‖q‖₂ ambiguity</span><span class="mono-val" id="retrieveNormOut">—</span></div>
+            </div>
+            <div class="retrieve-result" id="retrieveResult" aria-live="polite">
+              <p class="rr-status">Pick a query to run the loop.</p>
+            </div>
+          </div>
+        </div>
+        <figcaption><span class="fig-label">Figure 11.</span> The complete interaction on a simulated bench scene, using the norms measured for this scene in the paper. <strong>Try “food”</strong> to see the ambiguity path, answer the question, and watch retrieval complete; then try a phrase that matches nothing to see the similarity threshold τ in action. <em>Scores from the paper; interface simulated.</em></figcaption>
+      </figure>
+    </section>
+
+    <!-- ============================= 7 RESULTS ============================= -->
+    <section id="results" class="chapter">
+      <h2 class="chapter-title"><span class="chapnum">7</span> Experimental results</h2>
+      <p class="chapter-intro">The paper evaluates on two datasets with a single GPU: 3D-OVS, six small scenes with about six objects each, several of which share a supercategory, and the Figurines scene from LERF, which is denser and harder. Baselines are Lang-SAM, LERF, 3D-OVS, and LangSplat — each the strongest of its family at the time. A rendered image is segmented by comparing the query against pixel features; IoU is measured against ground-truth masks.</p>
+
+      <h3>7.1 Segmentation accuracy</h3>
+      <p>Table&nbsp;2 is the paper’s main comparison. SaaF leads every scene, and the margin is largest exactly where the failure modes from §<a href="#breaks">3</a> predict it should be: the <em>sofa</em> column, which contains two similar controllers.</p>
+
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption>Table 2. 2D semantic segmentation IoU on 3D-OVS, images resized to 1440 × 1080. Higher is better. The sofa scene is the discriminability test.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Method</th>
+              <th scope="col">blue sofa</th>
+              <th scope="col">lawn</th>
+              <th scope="col">office desk</th>
+              <th scope="col">bench</th>
+              <th scope="col">room</th>
+              <th scope="col" class="col-disc">sofa</th>
+              <th scope="col" class="col-overall">overall</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Lang-SAM</th><td>55.0</td><td>89.4</td><td>57.8</td><td>89.3</td><td>71.3</td><td class="col-disc">85.1</td><td class="col-overall">74.6</td></tr>
+            <tr><th scope="row">LERF</th><td>46.6</td><td>73.7</td><td>47.3</td><td>53.2</td><td>46.6</td><td class="col-disc">27.0</td><td class="col-overall">49.6</td></tr>
+            <tr><th scope="row">3D-OVS</th><td>82.7</td><td>88.1</td><td>92.8</td><td>89.3</td><td>92.8</td><td class="col-disc">74.0</td><td class="col-overall">86.6</td></tr>
+            <tr><th scope="row">LangSplat</th><td>94.2</td><td>96.1</td><td>92.6</td><td>94.2</td><td>94.1</td><td class="col-disc">90.0</td><td class="col-overall">93.5</td></tr>
+            <tr class="ours"><th scope="row">SaaF</th><td>97.2</td><td>97.3</td><td>97.5</td><td>96.2</td><td>94.3</td><td class="col-disc">95.7</td><td class="col-overall">96.4</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="table-note">Reading the sofa column: LERF collapses to 27.0, LangSplat falls 5.7 points below SaaF here, and SaaF holds 95.7. That column is the direct measurement of failure A.</p>
+
+      <figure class="fig">
+        <div class="fig-frame chart-frame anim-in">
+          <div class="panel-pair">
+            <div class="panel-col">
+              <p class="panel-title">LERF · Figurines <span class="panel-sub">IoU, complex scene</span></p>
+              <div class="bars">
+                <div class="barrow" data-value="19.5"><span class="bar-label">Lang-SAM</span><div class="bar"><i></i></div><span class="bar-num">19.5</span></div>
+                <div class="barrow" data-value="38.6"><span class="bar-label">LERF</span><div class="bar"><i></i></div><span class="bar-num">38.6</span></div>
+                <div class="barrow" data-value="44.7"><span class="bar-label">LangSplat</span><div class="bar"><i></i></div><span class="bar-num">44.7</span></div>
+                <div class="barrow ours" data-value="46.6"><span class="bar-label">SaaF</span><div class="bar"><i></i></div><span class="bar-num">46.6</span></div>
+              </div>
+            </div>
+            <div class="panel-col">
+              <p class="panel-title">Retrieval latency <span class="panel-sub">average per query, 3D-OVS</span></p>
+              <div class="bars" data-max="10">
+                <div class="barrow slow" data-value="9.6"><span class="bar-label">LangSplat</span><div class="bar"><i></i></div><span class="bar-num">9.6 ms</span></div>
+                <div class="barrow ours" data-value="6.3"><span class="bar-label">SaaF</span><div class="bar"><i></i></div><span class="bar-num">6.3 ms</span></div>
+              </div>
+            </div>
+          </div>
+          <p class="fig-note">Left: the gain over LangSplat narrows to 1.9 points on the denser scene. Right: LangSplat must decode features for every rendered pixel; SaaF compresses the query once and compares compressed features, which is where the 1.5× comes from.</p>
+        </div>
+        <figcaption><span class="fig-label">Figure 12.</span> The paper’s secondary comparisons. A narrower but consistent gain on a harder scene, and a lower per-query cost than the method it improves on — requirement R4, satisfied without a separate mechanism.</figcaption>
+      </figure>
+
+      <h3>7.2 Ambiguity detection</h3>
+      <p>Figure&nbsp;9 is the evidence for the ambiguity claim: with μ = 0.5, queries that cover several objects (0.08 to 0.44) separate cleanly from queries that name one (0.53 to 1.59) across both scenes. The paper also verifies that the separation depends on training with ambiguous labels: without them, the same queries score up to 0.25 and the gap to specific queries nearly disappears.</p>
+
+      <h3>7.3 Ablation: which part does the work</h3>
+      <p>Table&nbsp;3 removes one component at a time on 3D-OVS. The two mechanisms are only valuable together, which is the most interesting result in the paper.</p>
+
+      <div class="table-wrap anim-in" id="ablationTable">
+        <table class="data-table ablation-table">
+          <caption>Table 3. Ablation of SaaF’s components, mIoU on 3D-OVS. The gauge column is relative to the 100-point scale.</caption>
+          <thead>
+            <tr><th scope="col">Configuration</th><th scope="col">mIoU</th><th scope="col">Change</th><th scope="col" class="gauge-col">Relative</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">No best frame, no text labels <span class="row-tag">baseline</span></th><td>41.4</td><td class="delta">—</td><td><span class="gauge" style="--w:.414"><i></i></span></td></tr>
+            <tr><th scope="row">+ best frame only</th><td>50.4</td><td class="delta up">+9.0</td><td><span class="gauge" style="--w:.504"><i></i></span></td></tr>
+            <tr><th scope="row">+ specific labels only</th><td>87.9</td><td class="delta up">+37.5</td><td><span class="gauge" style="--w:.879"><i></i></span></td></tr>
+            <tr class="warn-row"><th scope="row">+ ambiguous labels, still no best frame</th><td>86.4</td><td class="delta down">−1.5</td><td><span class="gauge amber" style="--w:.864"><i></i></span></td></tr>
+            <tr class="ours"><th scope="row">Best frame + multi-ambiguity labels <span class="row-tag">full method</span></th><td>96.4</td><td class="delta up">+8.5</td><td><span class="gauge green" style="--w:.964"><i></i></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>7.4 What the numbers mean</h3>
+      <p>Three readings, in order of how much they tell you about the method:</p>
+      <ol class="num-list">
+        <li><strong>Text supervision does most of the work.</strong> Going from geometry-only to specific labels jumps 37.5 points, from 50.4 to 87.9. Without language in the training loop, the compressed space is simply not aligned with phrases.</li>
+        <li><strong>Ambiguity awareness alone slightly hurts retrieval.</strong> Adding ambiguous labels without best-frame selection costs 1.5 points (87.9 to 86.4), because margin pressure from vague concepts pulls instance features toward the origin. This is the honest cost of the second idea.</li>
+        <li><strong>Combined, the two mechanisms pay off.</strong> Best frames stabilize the per-instance features, and ambiguity labels then add 8.5 points over the label-only result, reaching 96.4. Neither component alone gets near it.</li>
+      </ol>
+
+      <aside class="callout callout-paper">
+        <p class="callout-title">From the paper</p>
+        <p>“When training with multiple ambiguous text labels, the mIoU accuracy slightly decreased 1.5 points to 86.4%. In contrast, combining ambiguous text labels with best frame selection led to a significant improvement of 8.5 points, achieving an mIoU of 96.4%.”</p>
+      </aside>
+    </section>
+
+    <!-- ============================= 8 OUTLOOK ============================= -->
+    <section id="outlook" class="chapter">
+      <h2 class="chapter-title"><span class="chapnum">8</span> Limitations &amp; open problems</h2>
+      <p class="chapter-intro">The paper is explicit about what it does not solve. This chapter collects the limitations, answers two practical questions, and closes with what the method contributes beyond its own numbers.</p>
+
+      <h3>8.1 Limitations the paper names</h3>
+      <ul class="plain-list warn">
+        <li><strong>Tracking is the floor.</strong> Everything depends on SAM2’s masks and instance IDs. If one physical object is split into two identities, both feature clusters collapse toward the origin, and the object may never be retrieved because it always looks ambiguous.</li>
+        <li><strong>No part hierarchy.</strong> The field knows objects, not “the lid of the tart box”. Related work models whole-part-subpart relationships; SaaF does not yet, so queries that address parts fall outside what the space was trained for.</li>
+        <li><strong>μ is hand-tuned per scene.</strong> The ambiguity threshold must currently be chosen manually for each environment. Real deployments need it calibrated automatically.</li>
+        <li><strong>Two indoor datasets.</strong> The evaluation covers 3D-OVS and the LERF Figurines scene. Real service-robot environments with motion, changing lighting, and clutter remain future work, which the paper states as its next step.</li>
+      </ul>
+
+      <h3>8.2 A practical question</h3>
+      <aside class="callout callout-faq">
+        <p class="callout-title">Common question</p>
+        <p><strong>Is the field general, or does it need training per room?</strong> Training is scene-specific by design: the autoencoder is trained on the tracked masks and labels of one capture, which is what lets it know which phrases are vague <em>here</em>. The per-scene cost is one training pass plus splatting on a single consumer-grade-at-the-time GPU; the payoff is a space that reflects the actual objects in the room.</p>
+      </aside>
+
+      <h3>8.3 What to remember</h3>
+      <ul class="plain-list">
+        <li><strong>The fix is in the loss, not the architecture.</strong> A metric-learning term added to a plain autoencoder solved instance discriminability; no modules were added anywhere else.</li>
+        <li><strong>Ambiguity can be learned as geometry.</strong> Because vague concepts genuinely belong to several instances, they settle near the origin, and the vector’s length becomes the uncertainty signal — no separate classifier, one L2 norm per query.</li>
+        <li><strong>Supervision can be generated.</strong> A VLM plus object tracking produced the ≈100 labels per object that gave the space its semantics, with no human annotation of the scene.</li>
+        <li><strong>Asking beats guessing.</strong> The interaction loop turns unstable retrieval into a dialogue, at a cost of one norm and a question.</li>
+      </ul>
+
+      <blockquote class="quote">
+        <p>“Experimental results indicate SaaF can compute ambiguity and retrieve an object simultaneously in scenarios containing ambiguity… more practical service robots that account for ambiguity.”</p>
+        <cite>Yano, Kanaoka, Tamukoh, Kawanishi — IROS 2026</cite>
+      </blockquote>
+    </section>
+
+    <!-- ============================= REFERENCES ============================= -->
+    <section id="references" class="chapter">
+      <h2 class="chapter-title">References</h2>
+      <p class="chapter-intro">Primary sources for this report. The first entry is the subject of the report; the rest are the foundations and baselines referenced in the text, as cited by the paper.</p>
+      <ol class="ref-list">
+        <li><span class="ref-num">[1]</span><div><p>Yano, Y., Kanaoka, D., Tamukoh, H., Kawanishi, Y. <strong>SaaF: Scene-Specific Ambiguity-Aware 3D Language Fields towards Interactive Real-World Object Retrieval.</strong> IROS 2026. <a href="https://arxiv.org/abs/2607.16309" target="_blank" rel="noopener">arXiv:2607.16309</a></p></div></li>
+        <li><span class="ref-num">[2]</span><div><p>Qin, M., Li, W., Zhou, J., Wang, H., Pfister, H. <strong>LangSplat: 3D Language Gaussian Splatting.</strong> CVPR 2024. <a href="https://arxiv.org/abs/2312.16084" target="_blank" rel="noopener">arXiv:2312.16084</a></p></div></li>
+        <li><span class="ref-num">[3]</span><div><p>Kerr, J., Kim, C. M., Goldberg, K., Kanazawa, A., Tancik, M. <strong>LERF: Language Embedded Radiance Fields.</strong> ICCV 2023. <a href="https://arxiv.org/abs/2303.09553" target="_blank" rel="noopener">arXiv:2303.09553</a></p></div></li>
+        <li><span class="ref-num">[4]</span><div><p>Kerbl, B., Kopanas, G., Leimkühler, T., Drettakis, G. <strong>3D Gaussian Splatting for Real-Time Radiance Field Rendering.</strong> ACM TOG 42(4), 2023. <a href="https://arxiv.org/abs/2308.04079" target="_blank" rel="noopener">arXiv:2308.04079</a></p></div></li>
+        <li><span class="ref-num">[5]</span><div><p>Radford, A., Kim, J. W., Hallacy, C., et al. <strong>Learning Transferable Visual Models From Natural Language Supervision (CLIP).</strong> ICML 2021. <a href="https://arxiv.org/abs/2103.00020" target="_blank" rel="noopener">arXiv:2103.00020</a></p></div></li>
+        <li><span class="ref-num">[6]</span><div><p>Kirillov, A., Mintun, E., Ravi, N., et al. <strong>Segment Anything.</strong> ICCV 2023. <a href="https://arxiv.org/abs/2304.02643" target="_blank" rel="noopener">arXiv:2304.02643</a></p></div></li>
+        <li><span class="ref-num">[7]</span><div><p>Ravi, N., Gabeur, V., Hu, Y., et al. <strong>SAM 2: Segment Anything in Images and Videos.</strong> 2024. <a href="https://arxiv.org/abs/2408.00714" target="_blank" rel="noopener">arXiv:2408.00714</a></p></div></li>
+        <li><span class="ref-num">[8]</span><div><p>Ren, A. Z., Dixit, A., Bodrova, A., et al. <strong>Robots That Ask For Help: Uncertainty Alignment for Large Language Model Planners (KnowNo).</strong> CoRL 2023. <a href="https://arxiv.org/abs/2307.01928" target="_blank" rel="noopener">arXiv:2307.01928</a></p></div></li>
+        <li><span class="ref-num">[9]</span><div><p>Liu, K., Zhan, F., Zhang, J., et al. <strong>Weakly Supervised 3D Open-vocabulary Segmentation</strong> (source of the 3D-OVS benchmark). NeurIPS 36, 2023. <a href="https://arxiv.org/abs/2305.14093" target="_blank" rel="noopener">arXiv:2305.14093</a></p></div></li>
+        <li><span class="ref-num">[10]</span><div><p>Ye, M., Danelljan, M., Yu, F., Ke, L. <strong>Gaussian Grouping: Segment and Edit Anything in 3D Scenes.</strong> ECCV 2024. <a href="https://arxiv.org/abs/2312.00732" target="_blank" rel="noopener">arXiv:2312.00732</a></p></div></li>
+        <li><span class="ref-num">[11]</span><div><p>Cen, J., Fang, J., Yang, C., et al. <strong>Segment Any 3D Gaussians (SAGA).</strong> 2023. <a href="https://arxiv.org/abs/2312.00860" target="_blank" rel="noopener">arXiv:2312.00860</a></p></div></li>
+        <li><span class="ref-num">[12]</span><div><p>Medeiros, L. <strong>Language-Segment Anything (Lang-SAM).</strong> 2024. <a href="https://github.com/luca-medeiros/lang-segment-anything" target="_blank" rel="noopener">github.com/luca-medeiros/lang-segment-anything</a></p></div></li>
+      </ol>
+    </section>
+
+    <!-- ============================= CITATION ============================= -->
+    <section id="cite" class="chapter">
+      <h2 class="chapter-title">Citation &amp; disclosure</h2>
+      <p class="chapter-intro">If you cite the work, cite the paper. This page is an independent explainer and is not authored by the paper’s authors.</p>
+
+      <div class="cite-grid">
+        <div>
+          <p class="mono-label">BibTeX</p>
+          <pre class="bibtex" id="bibtex">@inproceedings{yano2026saaf,
+  title     = {SaaF: Scene-Specific Ambiguity-Aware 3D
+               Language Fields towards Interactive
+               Real-World Object Retrieval},
+  author    = {Yano, Yuga and Kanaoka, Daiju and
+               Tamukoh, Hakaru and Kawanishi, Yasutomo},
+  booktitle = {IEEE/RSJ International Conference on
+               Intelligent Robots and Systems (IROS)},
+  year      = {2026},
+  doi       = {10.48550/arXiv.2607.16309}
+}</pre>
+          <button type="button" class="btn" id="copyBib">Copy BibTeX</button>
+        </div>
+        <div>
+          <p class="mono-label">About this report</p>
+          <ul class="plain-list small">
+            <li>Independent, educational reading of the paper. No affiliation with the authors.</li>
+            <li>Every measured number, threshold, and quote is taken from <a href="https://arxiv.org/abs/2607.16309" target="_blank" rel="noopener">arXiv:2607.16309</a> (CC BY 4.0).</li>
+            <li>Interactive figures are stylized simulations built to teach the mechanism; they are labelled <span class="tag-inline">Interactive</span> and are not reimplementations.</li>
+            <li>Reference links point to arXiv or the original repository; identifiers were verified against the arXiv API.</li>
+          </ul>
+          <p class="mono-label second">Paper links</p>
+          <ul class="plain-list small">
+            <li><a href="https://arxiv.org/abs/2607.16309" target="_blank" rel="noopener">Abstract page</a></li>
+            <li><a href="https://arxiv.org/pdf/2607.16309" target="_blank" rel="noopener">PDF</a></li>
+            <li><a href="https://arxiv.org/html/2607.16309v1" target="_blank" rel="noopener">HTML</a></li>
+            <li><a href="https://doi.org/10.48550/arXiv.2607.16309" target="_blank" rel="noopener">DOI</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="footer-foot"><span>SaaF — an interactive report</span><span>Built from the primary source · <a href="#top">Back to top ↑</a></span></p>
+    </section>
+
+  </main>
+</div>
+<script src="main.js"></script>
+</body>
+</html>
