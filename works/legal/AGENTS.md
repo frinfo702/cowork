@@ -68,6 +68,7 @@ AGENTS.md               this contract
   routing.json          business router
   playbooks/*.md        business flows
   skills/*/SKILL.md     domain knowledge
+  agents/*-mode.md      workspace mode
 data/                   personal data (untracked; case notes, timelines, document drafts)
 ```
 

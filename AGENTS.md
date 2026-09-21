@@ -28,6 +28,7 @@ works/
     routing.json               business router classification data
     playbooks/*.md             business flows (routing targets)
     skills/*/SKILL.md          domain knowledge modules
+    agents/<domain>-mode.md    workspace mode (poteto-mode equivalent)
   legal/                       law and contracts (same setup)
   medical/                     health and medicine (same setup)
   ml-research/                 ML research (same setup)
@@ -159,6 +160,7 @@ They live in `.agents/skills/`. A domain playbook reads `../../.agents/skills/<n
 |---|---|
 | `.agents/agents/worker.md` | delegated research and bulk processing. Returns summaries only |
 | `.agents/agents/verifier.md` | read-only independent verification. Reads with intent to break |
+| `works/<domain>/.agents/agents/<domain>-mode.md` | workspace mode. Reads the domain AGENTS.md in full before working (poteto-mode equivalent) |
 
 When the app does not auto-detect `.agents/agents/`, the primary reads these files and includes them in the subagent prompt.
 
@@ -169,7 +171,8 @@ Adding a domain:
 1. Write the primary contract in `works/<name>/AGENTS.md` (copy an existing domain and swap the expertise).
 2. Write the business router in `works/<name>/.agents/routing.json`. Every rule must carry `playbook` and `skills`.
 3. Fill `works/<name>/.agents/playbooks/` and `skills/`.
-4. Add the domain rule to `.agents/routing.json`.
+4. Write the workspace mode agent at `works/<name>/.agents/agents/<name>-mode.md` (copy an existing domain).
+5. Add the domain rule to `.agents/routing.json`.
 
 Adding a business type:
 
